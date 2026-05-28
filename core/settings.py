@@ -1,4 +1,24 @@
 import logging
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / ".env"
+
+
+class Settings(BaseSettings):
+    BASE_URL: str
+    BOT_TOKEN: str
+    RABBITMQ_HOST: str
+    RABBITMQ_PORT: int
+    RABBITMQ_USERNAME: str
+    RABBITMQ_PASSWORD: str
+
+    model_config = SettingsConfigDict(env_file=ENV_PATH)
+
+
+settings = Settings()
 
 
 class CustomFormatter(logging.Formatter):
@@ -27,8 +47,8 @@ class CustomFormatter(logging.Formatter):
             f"{WHITE}{msg}{RESET}"
         )
 
-
         return formatted
+
 
 def setup_logging():
     handler = logging.StreamHandler()
@@ -42,5 +62,6 @@ def setup_logging():
         logger.addHandler(handler)
 
     return logger
+
 
 logger = setup_logging()
