@@ -186,23 +186,6 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
-    async def loading_message(self, update, context: ContextTypes.DEFAULT_TYPE):
-        msg = await update.message.reply_text("⏳ در حال پردازش")
-
-        frames = [".⏳ در حال پردازش", "..⏳ در حال پردازش", "...⏳ در حال پردازش"]
-        frame_counter = 0
-        while True:
-
-            if not context.user_data["loading"]:
-                break
-            await asyncio.sleep(0.2)
-            await msg.edit_text(frames[frame_counter])
-            if frame_counter == 2:
-                frame_counter = 0
-            else:
-                frame_counter += 1
-        await msg.delete()
-
     async def join_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.callback_query.from_user
         if user.is_bot:
