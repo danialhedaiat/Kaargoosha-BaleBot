@@ -74,7 +74,7 @@ class BotPublisher:
         try:
             message = body | self.SOCIAL_MEDIA
             response = self.publish(exchange="user", routing_key="user.create", message=message)
-            self.run_callback(callback, callback_kwargs, {"user":response})
+            self.run_callback(callback, callback_kwargs, {"response": response})
 
         except Exception as exc:
             logger.error(traceback.format_exc())
@@ -83,7 +83,7 @@ class BotPublisher:
     def user_phone_number_check(self, body, callback, callback_kwargs):
         try:
             response = self.publish(exchange="user", routing_key="user.check_phone_number", message=body)
-            self.run_callback(callback, callback_kwargs,response)
+            self.run_callback(callback, callback_kwargs, {"response": response})
 
         except Exception as exc:
             logger.error(traceback.format_exc())
@@ -92,6 +92,7 @@ class BotPublisher:
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
         try:
+            response["response"] = json.loads(response["response"])
             callback_kwargs |= response
             asyncio.create_task(callback(**callback_kwargs))
         except Exception as exc:
