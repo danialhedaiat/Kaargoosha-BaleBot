@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     RABBITMQ_PORT: int
     RABBITMQ_USERNAME: str
     RABBITMQ_PASSWORD: str
+    SOCIAL_MEDIA: str
+    GOD: str
 
     model_config = SettingsConfigDict(env_file=ENV_PATH)
 
