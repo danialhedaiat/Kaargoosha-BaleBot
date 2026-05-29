@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 import uuid
 import traceback
@@ -7,12 +8,12 @@ import msgpack
 from pika.spec import BasicProperties
 
 from core.rabbitmq_connection import RabbitMQConnection
-from core.settings import logger
+from core.settings import logger, settings
 
 
 class BotPublisher:
     DEFAULT_TIMEOUT = 0.2
-    SOCIAL_MEDIA = {"social_media":"Bale"}
+    SOCIAL_MEDIA = {"social_media": settings.SOCIAL_MEDIA}
 
     def __init__(self):
 
@@ -88,6 +89,20 @@ class BotPublisher:
         except Exception as exc:
             logger.error(traceback.format_exc())
             logger.error(exc)
+
+    def user_join_from_different_platform(self, body, callback, callback_kwargs):
+        try:
+            message = body | self.SOCIAL_MEDIA
+            response = self.publish(exchange="user", routing_key="user.join", message=message)
+            self.run_callback(callback, callback_kwargs, {"response": response})
+        except Exception as exc:
+            logger.error(traceback.format_exc())
+            logger.error(exc)
+
+    def get_user_by_username(self, body, callback, callback_kwargs):
+        message = body | self.SOCIAL_MEDIA
+        response = self.publish(exchange="user", routing_key="user.get_user_by_username", message=message)
+        self.run_callback(callback, callback_kwargs, {"response": response})
 
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
