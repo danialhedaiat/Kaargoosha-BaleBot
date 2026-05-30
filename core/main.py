@@ -73,8 +73,8 @@ class BaleBot():
         context.user_data["flow"] = "sign_in"
         try:
             self.publisher.get_user_by_username(body=context.user_data,
-                                            callback=self.after_sign_in,
-                                            callback_kwargs={"update": update, "context": context})
+                                                callback=self.after_sign_in,
+                                                callback_kwargs={"update": update, "context": context})
 
         except Exception as e:
             logger.error(traceback.format_exc())
@@ -92,10 +92,22 @@ class BaleBot():
                 await update.effective_message.reply_text("اکانت شما یافت نشد",
                                                           reply_markup=reply_markup)
                 return
-            message = "به حساب کاربری خود خوش امدید\nحساب کاربری شما:\n" + "\n".join(
-                f"{field}: {response[field]}" for field in response
-            )
-            await update.effective_message.reply_text(message)
+            context.user_data["role"] = response["role_permission"]
+            context.user_data["social_media"] = response["social_media"]
+            context.user_data["first_name"] = response["first_name"]
+            context.user_data["last_name"] = response["last_name"]
+            context.user_data["phone_number"] = response["phone_number"]
+            context.user_data["user_id"] = response["id"]
+            if context.user_data["phone_number"] == settings.GOD:
+                keyboard = [
+                    [InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")],
+                    [InlineKeyboardButton("منوی ادمین", callback_data="admin_menu")],
+                ]
+
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text(
+                    f"{context.user_data["first_name"]} عزیز به کارگشا خوش آمدی\nلطفا یکی از منو های زیر را انتخاب کن",
+                    reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
