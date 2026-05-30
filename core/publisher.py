@@ -108,6 +108,10 @@ class BotPublisher:
         response = self.publish(exchange="user", routing_key="user.check_admin_menu_permission", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def create_role(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="role", routing_key="role.create", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
         try:
