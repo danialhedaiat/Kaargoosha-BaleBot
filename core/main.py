@@ -57,6 +57,7 @@ class BaleBot():
             context.user_data["phone_number_join_user_flag"] = None
             context.user_data["firstname_flag"] = None
             context.user_data["lastname_flag"] = None
+            context.user_data["role_name_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -216,6 +217,11 @@ class BaleBot():
             self.publisher.user_create(body=context.user_data, callback=self.user_created,
                                        callback_kwargs={"update": update, "context": context})
 
+        elif context.user_data["role_name_flag"] and context.user_data["flow"] == "create_role":
+            body = {"name": update.message.text, "requested_by": context.user_data["user_id"]}
+            self.publisher.create_role(body=body, callback=self.role_created,
+                                       callback_kwargs={"update": update, "context": context})
+
     async def check_phone_number_create_user_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                                      response):
 
@@ -336,7 +342,7 @@ class BaleBot():
             if response["status"] == True:
                 context.user_data["flow"] = "admin_menu"
                 keyboard = [
-                    [InlineKeyboardButton("ساخت رول جدید", callback_data="create_role")],
+                    [InlineKeyboardButton("ساخت رول جدید", callback_data="createـrole")],
                     [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
                 ]
 
@@ -349,13 +355,27 @@ class BaleBot():
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("شما به این منو دسترسی ندارید")
+                await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup= reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
 
     async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        pass
+        context.user_data["flow"] = "create_role"
+        context.user_data["role_name_flag"] = True
+        await update.effective_message.reply_text("لطفا نام رول جدید را ارسال کنید:")
+
+    async def role_created(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        keyboard = [
+            [InlineKeyboardButton("ساخت رول جدید", callback_data="create_role")],
+            [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
+            [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        logger.info(response)
+        await update.effective_message.reply_text(f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
+                                                  reply_markup=reply_markup)
 
     async def select_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
