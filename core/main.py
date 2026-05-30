@@ -40,6 +40,8 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.create_command, pattern="create"))
         self.app.add_handler(CallbackQueryHandler(self.start_command, pattern="start"))
         self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="admin_menu"))
+        self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="create_role"))
+        self.app.add_handler(CallbackQueryHandler(self.select_role, pattern="select_role"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -329,6 +331,34 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+    async def admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            if response["status"] == True:
+                context.user_data["flow"] = "admin_menu"
+                keyboard = [
+                    [InlineKeyboardButton("ساخت رول جدید", callback_data="create_role")],
+                    [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
+                ]
+
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text("پلن ادمین",
+                                                          reply_markup=reply_markup)
+            else:
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
+                ]
+
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text("شما به این منو دسترسی ندارید")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
+
+    async def select_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
 
 
 if __name__ == "__main__":
