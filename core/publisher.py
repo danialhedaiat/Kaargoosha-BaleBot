@@ -104,6 +104,10 @@ class BotPublisher:
         response = self.publish(exchange="user", routing_key="user.get_user_by_username", message=message)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def check_admin_menu_permission(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="user", routing_key="user.check_admin_menu_permission", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
         try:
