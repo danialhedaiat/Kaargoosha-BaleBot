@@ -39,6 +39,7 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.join_command, pattern="join"))
         self.app.add_handler(CallbackQueryHandler(self.create_command, pattern="create"))
         self.app.add_handler(CallbackQueryHandler(self.start_command, pattern="start"))
+        self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="admin_menu"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -213,10 +214,10 @@ class BaleBot():
             self.publisher.user_create(body=context.user_data, callback=self.user_created,
                                        callback_kwargs={"update": update, "context": context})
 
-    async def check_phone_number_create_user_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+    async def check_phone_number_create_user_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                                     response):
 
         msg = await update.message.reply_text("درحال چک کردن شماره تلفن شما", reply_markup=ReplyKeyboardRemove())
-
 
         if "error" in response and not response["error"] == "User does not exist":
             keyboard = [
@@ -318,6 +319,16 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+    async def check_admin_menu_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            await update.effective_message.reply_text("درحال چک کردن دسترسی شما...")
+            self.publisher.check_admin_menu_permission(context.user_data, self.admin_menu,
+                                                       {"update": update, "context": context})
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
 
 
 if __name__ == "__main__":
