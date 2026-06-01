@@ -391,8 +391,7 @@ class BaleBot():
     async def get_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             body = {"requested_by": context.user_data["user_id"]}
-            response = self.publisher.get_roles(body=body, callback=self.show_roles,
-                                     callback_kwargs={"update": update, "context": context})
+            response = self.publisher.get_roles(body=body)
             if "error" in response:
                 logger.error(response["error"])
                 pass
