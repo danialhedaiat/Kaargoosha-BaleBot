@@ -58,7 +58,14 @@ class BaleBot():
 
     def run(self):
         logger.info("Run Bale Bot")
-        self.app.run_polling()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            loop.run_until_complete(self.app.run_polling())
+        finally:
+            loop.close()
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
