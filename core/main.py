@@ -41,7 +41,6 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.start_command, pattern="^start$"))
         self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="^admin_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="^createـrole$"))
-        self.app.add_handler(CallbackQueryHandler(self.select_role, pattern="^select_role$"))
         self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
@@ -374,9 +373,6 @@ class BaleBot():
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-        logger.info(response)
-        await update.effective_message.reply_text(f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
-                                                  reply_markup=reply_markup)
         await update.effective_message.reply_text(
             f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
             reply_markup=reply_markup)
