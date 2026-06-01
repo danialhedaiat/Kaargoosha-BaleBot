@@ -42,6 +42,7 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="^admin_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="^createـrole$"))
         self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
+        self.app.add_handler(CallbackQueryHandler(self.assign_role, pattern="^assign_role$"))
         self.app.add_handler(CallbackQueryHandler(self.selected_role, pattern=r"^select_role_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.check_role_permissions, pattern=r"^check_role_permissions_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.add_role_permission, pattern=r"^add_role_permission_\d+$"))
@@ -52,6 +53,8 @@ class BaleBot():
             CallbackQueryHandler(self.add_selected_permission, pattern=r"^add_selected_permission_(\d+)_([A-Z_]+)$"))
         self.app.add_handler(CallbackQueryHandler(self.revoke_selected_permission,
                                                   pattern=r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.selected_assign_role,
+                                                  pattern=r"^select_assign_role_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -75,6 +78,7 @@ class BaleBot():
             context.user_data["firstname_flag"] = None
             context.user_data["lastname_flag"] = None
             context.user_data["role_name_flag"] = None
+            context.user_data["assign_role_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -113,7 +117,7 @@ class BaleBot():
                 await update.effective_message.reply_text("اکانت شما یافت نشد",
                                                           reply_markup=reply_markup)
                 return
-            context.user_data["role"] = response["role_permission"]
+            context.user_data["roles"] = response["roles"]
             context.user_data["social_media"] = response["social_media"]
             context.user_data["first_name"] = response["first_name"]
             context.user_data["last_name"] = response["last_name"]
@@ -193,51 +197,65 @@ class BaleBot():
             logger.error(e)
 
     async def text_message_listener(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            if context.user_data["phone_number_create_user_flag"] and context.user_data["flow"] == " create":
+                phone = update.message.text
+                context.user_data["phone_number"] = "0" + phone[-10:]
 
-        if context.user_data["phone_number_create_user_flag"] and context.user_data["flow"] == " create":
-            phone = update.message.text
-            context.user_data["phone_number"] = "0" + phone[-10:]
+                if not re.fullmatch(r"\+?\d{11}", context.user_data["phone_number"]):
+                    await update.effective_message.reply_text(
+                        "لطفاً شماره معتبر وارد کنید یا از دکمه ارسال شماره استفاده کنید 📱",
+                    )
 
-            if not re.fullmatch(r"\+?\d{11}", context.user_data["phone_number"]):
-                await update.effective_message.reply_text(
-                    "لطفاً شماره معتبر وارد کنید یا از دکمه ارسال شماره استفاده کنید 📱",
-                )
+                self.publisher.user_phone_number_check(body=context.user_data,
+                                                       callback=self.check_phone_number_create_user_handler,
+                                                       callback_kwargs={"update": update, "context": context})
+                context.user_data["phone_number_create_user_flag"] = False
 
-            self.publisher.user_phone_number_check(body=context.user_data,
-                                                   callback=self.check_phone_number_create_user_handler,
-                                                   callback_kwargs={"update": update, "context": context})
-            context.user_data["phone_number_create_user_flag"] = False
+            elif context.user_data["phone_number_join_user_flag"] or context.user_data["flow"] == "join":
+                phone = update.message.text
+                context.user_data["phone_number"] = "0" + phone[-10:]
 
-        elif context.user_data["phone_number_join_user_flag"] or context.user_data["flow"] == "join":
-            phone = update.message.text
-            context.user_data["phone_number"] = "0" + phone[-10:]
+                if not re.fullmatch(r"\+?\d{11}", context.user_data["phone_number"]):
+                    await update.effective_message.reply_text(
+                        "لطفاً شماره معتبر وارد کنید یا از دکمه ارسال شماره استفاده کنید 📱",
+                    )
 
-            if not re.fullmatch(r"\+?\d{11}", context.user_data["phone_number"]):
-                await update.effective_message.reply_text(
-                    "لطفاً شماره معتبر وارد کنید یا از دکمه ارسال شماره استفاده کنید 📱",
-                )
+                self.publisher.user_phone_number_check(body=context.user_data,
+                                                       callback=self.check_phone_number_join_user_handler,
+                                                       callback_kwargs={"update": update, "context": context})
 
-            self.publisher.user_phone_number_check(body=context.user_data,
-                                                   callback=self.check_phone_number_join_user_handler,
-                                                   callback_kwargs={"update": update, "context": context})
+            elif context.user_data["firstname_flag"]:
+                context.user_data["first_name"] = update.message.text
+                context.user_data["firstname_flag"] = False
+                context.user_data["lastname_flag"] = True
 
-        elif context.user_data["firstname_flag"]:
-            context.user_data["first_name"] = update.message.text
-            context.user_data["firstname_flag"] = False
-            context.user_data["lastname_flag"] = True
+                await update.message.reply_text("لطفا نام خانوادگی خود را وارد کنید ⬇️")
 
-            await update.message.reply_text("لطفا نام خانوادگی خود را وارد کنید ⬇️")
+            elif context.user_data["lastname_flag"]:
+                context.user_data["last_name"] = update.message.text
+                context.user_data["lastname_flag"] = False
+                self.publisher.user_create(body=context.user_data, callback=self.user_created,
+                                           callback_kwargs={"update": update, "context": context})
 
-        elif context.user_data["lastname_flag"]:
-            context.user_data["last_name"] = update.message.text
-            context.user_data["lastname_flag"] = False
-            self.publisher.user_create(body=context.user_data, callback=self.user_created,
-                                       callback_kwargs={"update": update, "context": context})
+            elif context.user_data["role_name_flag"] and context.user_data["flow"] == "create_role":
+                body = {"name": update.message.text, "requested_by": context.user_data["user_id"]}
+                self.publisher.create_role(body=body, callback=self.role_created,
+                                           callback_kwargs={"update": update, "context": context})
 
-        elif context.user_data["role_name_flag"] and context.user_data["flow"] == "create_role":
-            body = {"name": update.message.text, "requested_by": context.user_data["user_id"]}
-            self.publisher.create_role(body=body, callback=self.role_created,
-                                       callback_kwargs={"update": update, "context": context})
+            elif context.user_data["assign_role_flag"]:
+                phone_number = update.message.text
+
+                if not phone_number or not phone_number.isdigit():
+                    await update.effective_message.reply_text("لطفا مقدار صحیح وارد کنید")
+                    return
+
+                context.chat_data["phone_number"] = phone_number
+                await self.select_assign_role(update, context)
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
     async def check_phone_number_create_user_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                                      response):
@@ -361,7 +379,7 @@ class BaleBot():
                 keyboard = [
                     [InlineKeyboardButton("ساخت رول جدید", callback_data="createـrole")],
                     [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
-                    [InlineKeyboardButton("اضافه کردن رول به کاربر", callback_data="add_role")],
+                    [InlineKeyboardButton("اضافه کردن رول به کاربر", callback_data="assign_role")],
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -631,8 +649,83 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
-    async def add_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        pass
+    async def assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["assign_role_flag"] = True
+
+            await update.effective_message.reply_text("لطفا شماره تلفن کاربر مورد نظر را ارسال کنید:")
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def select_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            phone_number = context.chat_data["phone_number"]
+            body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number}
+            response = self.publisher.get_roles(body=body)
+
+            if "error" in response:
+                logger.error(response["error"])
+                pass
+            keyboard = [
+                [InlineKeyboardButton(role["name"], callback_data=f"select_assign_role_{role['id']}")] for role in
+                response
+            ]
+            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def selected_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^select_assign_role_(\d+)$"
+
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+
+            phone_number = context.chat_data["phone_number"]
+
+            body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number, "role_id": role_id}
+
+            self.publisher.assign_user_role(body=body, callback=self.assigned_role, callback_kwargs={"update": update,
+                                                                                                     "context": context})
+
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def assigned_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            if "error" in response:
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data=f"assign_role")],
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text(f"متاسفانه با مشکل مواجه شد:\n{response["error"]}",
+                                                          reply_markup=reply_markup)
+                return
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data=f"admin_menu")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                f"رول با موفقیت به یوزر {response["first_name"]} {response["last_name"]} اضافه شد.\nرول های این کاربر:\n" + "\n".join(
+                    role["name"] for role in response["roles"]
+                ),
+                reply_markup=reply_markup)
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
 
 if __name__ == "__main__":
