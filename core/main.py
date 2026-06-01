@@ -42,6 +42,7 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="^admin_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="^createـrole$"))
         self.app.add_handler(CallbackQueryHandler(self.select_role, pattern="^select_role$"))
+        self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -355,7 +356,7 @@ class BaleBot():
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup= reply_markup)
+                await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -376,6 +377,35 @@ class BaleBot():
         logger.info(response)
         await update.effective_message.reply_text(f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
                                                   reply_markup=reply_markup)
+        await update.effective_message.reply_text(
+            f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
+            reply_markup=reply_markup)
+
+    async def get_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            body = {"requested_by": context.user_data["user_id"]}
+            self.publisher.get_roles(body=body, callback=self.show_roles,
+                                     callback_kwargs={"update": update, "context": context})
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def show_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            if "error" in response:
+                logger.error(response["error"])
+                pass
+            keyboard = [
+                [InlineKeyboardButton(role["name"], callback_data=f"select_role_{role['id']}")] for role in
+                response["roles"]
+            ]
+            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
 
     async def select_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
