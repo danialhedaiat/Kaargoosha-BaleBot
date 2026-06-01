@@ -42,6 +42,16 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.check_admin_menu_permission, pattern="^admin_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="^createـrole$"))
         self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
+        self.app.add_handler(CallbackQueryHandler(self.selected_role, pattern=r"^select_role_\d+$"))
+        self.app.add_handler(CallbackQueryHandler(self.check_role_permissions, pattern=r"^check_role_permissions_\d+$"))
+        self.app.add_handler(CallbackQueryHandler(self.add_role_permission, pattern=r"^add_role_permission_\d+$"))
+        self.app.add_handler(
+            CallbackQueryHandler(self.revoke_role_permission, pattern=r"^revoke_role_permission_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.delete_role_permission, pattern=r"^delete_role_(\d+)$"))
+        self.app.add_handler(
+            CallbackQueryHandler(self.add_selected_permission, pattern=r"^add_selected_permission_(\d+)_([A-Z_]+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.revoke_selected_permission,
+                                                  pattern=r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -344,6 +354,7 @@ class BaleBot():
                 keyboard = [
                     [InlineKeyboardButton("ساخت رول جدید", callback_data="createـrole")],
                     [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
+                    [InlineKeyboardButton("اضافه کردن رول به کاربر", callback_data="add_role")],
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -402,8 +413,225 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+    async def selected_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
 
-    async def select_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+            pattern = r"^select_role_(\d+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+
+            keyboard = [
+                [InlineKeyboardButton("مشاهده دسترسی ها", callback_data=f"check_role_permissions_{role_id}")],
+                [InlineKeyboardButton("اضافه کردن دسترسی جدید", callback_data=f"add_role_permission_{role_id}")],
+                [InlineKeyboardButton("حذف کردن دسترسی", callback_data=f"revoke_role_permission_{role_id}")],
+                [InlineKeyboardButton("حذف کردن رول", callback_data=f"delete_role_{role_id}")],
+                [InlineKeyboardButton("بازگشت", callback_data="select_role")],
+            ]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                f"منو تنظیمات رول",
+                reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def check_role_permissions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^check_role_permissions_(\d+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+
+            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+
+            response = self.publisher.get_role_permissions(
+                body=body)
+
+            if not response:
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")],
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text(f"دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
+                return
+
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            logger.info(response)
+
+            message = f"دسترسی هایی که برای این رول {response[0]["role"]["name"]} پیدا شد به این ترتیب است:\n" + "\n".join(
+                permission["codename"]
+                for permission in response
+            )
+            await update.effective_message.reply_text(message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def add_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+
+        pattern = r"^add_role_permission_(\d+)$"
+        match = re.match(pattern, query.data)
+
+        role_id = match.group(1)
+
+        body = {"requested_by": context.user_data["user_id"]}
+
+        response = self.publisher.get_all_permissions(body=body)
+        keyboard = [
+            [InlineKeyboardButton(permission, callback_data=f"add_selected_permission_{role_id}_{permission}")] for
+            permission in response.keys()
+        ]
+        keyboard += [
+            [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
+
+    async def add_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^add_selected_permission_(\d+)_([A-Z_]+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+            permission = match.group(2)
+
+            body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
+
+            response = self.publisher.add_role_permission(body=body)
+
+            if "error" in response and response["error"].startswith("(sqlite3.IntegrityError) UNIQUE constraint"):
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")],
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text("این دسترسی قبلا یه رول داده شده است",
+                                                          reply_markup=reply_markup)
+                return
+
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("دسترسی به رول داده شد", reply_markup=reply_markup)
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def revoke_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^revoke_role_permission_(\d+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+
+            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+
+            response = self.publisher.get_role_permissions(
+                body=body)
+            keyboard = [
+                [InlineKeyboardButton(permission["codename"],
+                                      callback_data=f"revoke_selected_permission_{role_id}_{permission["codename"]}")]
+                for
+                permission in response
+            ]
+            keyboard += [
+                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def revoke_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+            permission = match.group(2)
+
+            body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
+
+            response = self.publisher.revoke_role_permission(body=body)
+
+            if "error" in response:
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")],
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.effective_message.reply_text("این دسترسی پیدا نشد",
+                                                          reply_markup=reply_markup)
+                return
+
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("دسترسی با موفقیت حذف شد",
+                                                      reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def delete_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^delete_role_(\d+)$"
+            match = re.match(pattern, query.data)
+
+            role_id = match.group(1)
+
+            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+
+            response = self.publisher.delete_role(body=body)
+
+            if "error" in response:
+                keyboard = [
+                    [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                logger.info(type(response))
+                logger.info(response)
+                await update.effective_message.reply_text(
+                    f"در انجام عملیات با یک مشکل مواجه شدیم به پشتیبانی پیام دهید:\n{response}",
+                    reply_markup=reply_markup)
+                return
+
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data=f"select_role")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("رول با موفقیت حذف شد", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def add_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 

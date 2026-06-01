@@ -116,9 +116,31 @@ class BotPublisher:
         response = self.publish(exchange="role", routing_key="role.get_all", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def get_role_permissions(self, body):
+        response = self.publish(exchange="permission", routing_key="permission.get_role_permission", message=body)
+
+        return response
+
+    def get_all_permissions(self, body):
+        response = self.publish(exchange="permission", routing_key="permission.get_all", message=body)
+        return response
+
+    def add_role_permission(self, body):
+        response = self.publish(exchange="permission", routing_key="permission.create", message=body)
+        return response
+
+    def revoke_role_permission(self, body):
+        response = self.publish(exchange="permission", routing_key="permission.revoke", message=body)
+        return response
+
+    def delete_role(self, body):
+        response = self.publish(exchange="role", routing_key="role.delete", message=body)
+        return response
+
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
         try:
+            logger.info(response)
             response["response"] = json.loads(response["response"])
             callback_kwargs |= response
             asyncio.create_task(callback(**callback_kwargs))
