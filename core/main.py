@@ -397,7 +397,7 @@ class BaleBot():
                 pass
             keyboard = [
                 [InlineKeyboardButton(role["name"], callback_data=f"select_role_{role['id']}")] for role in
-                response["roles"]
+                response
             ]
             keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
