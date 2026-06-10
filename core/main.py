@@ -79,6 +79,7 @@ class BaleBot():
             context.user_data["lastname_flag"] = None
             context.user_data["role_name_flag"] = None
             context.user_data["assign_role_flag"] = None
+            context.user_data["user_role_list_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -252,6 +253,16 @@ class BaleBot():
 
                 context.chat_data["phone_number"] = phone_number
                 await self.select_assign_role(update, context)
+
+            elif context.user_data["user_role_list_flag"]:
+                phone_number = update.message.text
+
+                if not phone_number or not phone_number.isdigit():
+                    await update.effective_message.reply_text("لطفا مقدار صحیح وارد کنید")
+                    return
+                body = {"phone_number": phone_number, "requested_by": context.user_data["user_id"]}
+                self.publisher.get_user_roles(body=body, callback=self.recived_user_roles,
+                                              callback_kwargs={"update": update, "context": context})
 
         except Exception as e:
             logger.error(traceback.format_exc())
@@ -729,6 +740,19 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+    async def user_role_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data["user_role_list_flag"] = True
+
+        keyboard = [
+            [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("برای مشاهده لیست رول ها ابتدا شماره کاربر مورد نظر را وارد نمایید:",
+                                                  reply_markup=reply_markup)
+
+    async def recived_user_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        logger.info(response)
 
 
 if __name__ == "__main__":
