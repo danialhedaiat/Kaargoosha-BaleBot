@@ -374,12 +374,15 @@ class BaleBot():
 
     async def admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
         try:
+            # todo: delete and list role
             if response["status"] == True:
                 context.user_data["flow"] = "admin_menu"
                 keyboard = [
                     [InlineKeyboardButton("ساخت رول جدید", callback_data="createـrole")],
                     [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
+                    [InlineKeyboardButton("لیست رول های کاربر", callback_data="list_role")],
                     [InlineKeyboardButton("اضافه کردن رول به کاربر", callback_data="assign_role")],
+                    [InlineKeyboardButton("حذف کردن رول کاربر", callback_data="delete_role")],
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
