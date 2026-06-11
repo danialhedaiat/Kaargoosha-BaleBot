@@ -145,6 +145,10 @@ class BotPublisher:
         response = self.publish(exchange="role", routing_key="role.get_user_roles", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def revoke_user_role(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="role", routing_key="role.revoke", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     @staticmethod
     def run_callback(callback, callback_kwargs, response):
         try:

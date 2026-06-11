@@ -44,6 +44,9 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
         self.app.add_handler(CallbackQueryHandler(self.assign_role, pattern="^assign_role$"))
         self.app.add_handler(CallbackQueryHandler(self.user_role_list, pattern="^list_role$"))
+        self.app.add_handler(CallbackQueryHandler(self.delete_user_role, pattern="^delete_role$"))
+        self.app.add_handler(
+            CallbackQueryHandler(self.selected_delete_user_role, pattern=r"^select_delete_user_role_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.selected_role, pattern=r"^select_role_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.check_role_permissions, pattern=r"^check_role_permissions_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.add_role_permission, pattern=r"^add_role_permission_\d+$"))
@@ -81,6 +84,7 @@ class BaleBot():
             context.user_data["role_name_flag"] = None
             context.user_data["assign_role_flag"] = None
             context.user_data["user_role_list_flag"] = None
+            context.user_data["delete_user_role_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -266,6 +270,18 @@ class BaleBot():
                 self.publisher.get_user_roles(body=body, callback=self.recived_user_roles,
                                               callback_kwargs={"update": update, "context": context})
 
+            elif context.user_data["delete_user_role_flag"]:
+                phone_number = update.message.text
+
+                if not phone_number or not phone_number.isdigit():
+                    await update.effective_message.reply_text("لطفا مقدار صحیح وارد کنید")
+                    return
+                context.user_data["delete_user_role_flag"] = False
+                context.chat_data["delete_target_phone"] = phone_number
+                body = {"phone_number": phone_number, "requested_by": context.user_data["user_id"]}
+                self.publisher.get_user_roles(body=body, callback=self.show_user_roles_for_delete,
+                                              callback_kwargs={"update": update, "context": context})
+
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -387,7 +403,6 @@ class BaleBot():
 
     async def admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
         try:
-            # todo: delete and list role
             if response["status"] == True:
                 context.user_data["flow"] = "admin_menu"
                 keyboard = [
@@ -772,6 +787,91 @@ class BaleBot():
                 role["name"] for role in response["roles"]
             )
             await update.effective_message.reply_text(message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def delete_user_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["delete_user_role_flag"] = True
+
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                "برای حذف رول از کاربر، شماره تلفن کاربر مورد نظر را وارد کنید:",
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def show_user_roles_for_delete(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            keyboard_back = [
+                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+            ]
+            reply_markup_back = InlineKeyboardMarkup(keyboard_back)
+
+            if not response or "error" in response:
+                await update.effective_message.reply_text("کاربری با این شماره یافت نشد",
+                                                          reply_markup=reply_markup_back)
+                return
+
+            if not response.get("roles"):
+                await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup_back)
+                return
+
+            context.chat_data["delete_target_user_id"] = response["id"]
+
+            keyboard = [
+                [InlineKeyboardButton(role["name"], callback_data=f"select_delete_user_role_{role['id']}")]
+                for role in response["roles"]
+            ]
+            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                f"رول مورد نظر برای حذف از کاربر {response['first_name']} {response['last_name']} را انتخاب کنید:",
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def selected_delete_user_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            pattern = r"^select_delete_user_role_(\d+)$"
+            match = re.match(pattern, query.data)
+            role_id = match.group(1)
+
+            user_id = context.chat_data["delete_target_user_id"]
+            body = {"requested_by": context.user_data["user_id"], "user_id": user_id, "role_id": role_id}
+
+            self.publisher.revoke_user_role(body=body, callback=self.user_role_revoked,
+                                            callback_kwargs={"update": update, "context": context})
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def user_role_revoked(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            if "error" in response:
+                await update.effective_message.reply_text(
+                    f"متاسفانه با مشکل مواجه شدیم:\n{response['error']}",
+                    reply_markup=reply_markup
+                )
+                return
+
+            await update.effective_message.reply_text("رول با موفقیت از این کاربر حذف شد", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
