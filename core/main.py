@@ -60,6 +60,7 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.selected_assign_role,
                                                   pattern=r"^select_assign_role_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
+        self.app.add_handler(CallbackQueryHandler(self.apply_for_loan, pattern="^apply_for_loan$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -86,6 +87,9 @@ class BaleBot():
             context.user_data["assign_role_flag"] = None
             context.user_data["user_role_list_flag"] = None
             context.user_data["delete_user_role_flag"] = None
+            context.user_data["loan_flow"] = None
+            context.user_data["loan_amount"] = None
+            context.user_data["loan_duration"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -446,6 +450,28 @@ class BaleBot():
 
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.effective_message.reply_text("منوی شخصی", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def apply_for_loan(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["loan_flow"] = "duration"
+            context.user_data["loan_amount"] = None
+            context.user_data["loan_duration"] = None
+            keyboard = [
+                [
+                    InlineKeyboardButton("۶ ماه", callback_data="loan_duration_6"),
+                    InlineKeyboardButton("۱۲ ماه", callback_data="loan_duration_12"),
+                    InlineKeyboardButton("۱۵ ماه", callback_data="loan_duration_15"),
+                ],
+                [InlineKeyboardButton("انصراف", callback_data="personal_menu")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                "مدت زمان بازپرداخت وام را انتخاب کنید:",
+                reply_markup=reply_markup
+            )
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
