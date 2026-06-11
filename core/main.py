@@ -43,6 +43,7 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.create_role, pattern="^createـrole$"))
         self.app.add_handler(CallbackQueryHandler(self.get_roles, pattern="^select_role$"))
         self.app.add_handler(CallbackQueryHandler(self.assign_role, pattern="^assign_role$"))
+        self.app.add_handler(CallbackQueryHandler(self.user_role_list, pattern="^list_role$"))
         self.app.add_handler(CallbackQueryHandler(self.selected_role, pattern=r"^select_role_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.check_role_permissions, pattern=r"^check_role_permissions_\d+$"))
         self.app.add_handler(CallbackQueryHandler(self.add_role_permission, pattern=r"^add_role_permission_\d+$"))
@@ -260,6 +261,7 @@ class BaleBot():
                 if not phone_number or not phone_number.isdigit():
                     await update.effective_message.reply_text("لطفا مقدار صحیح وارد کنید")
                     return
+                context.user_data["user_role_list_flag"] = False
                 body = {"phone_number": phone_number, "requested_by": context.user_data["user_id"]}
                 self.publisher.get_user_roles(body=body, callback=self.recived_user_roles,
                                               callback_kwargs={"update": update, "context": context})
@@ -752,7 +754,27 @@ class BaleBot():
                                                   reply_markup=reply_markup)
 
     async def recived_user_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        logger.info(response)
+        try:
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            if not response or "error" in response:
+                await update.effective_message.reply_text("کاربری با این شماره یافت نشد", reply_markup=reply_markup)
+                return
+
+            if not response.get("roles"):
+                await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup)
+                return
+
+            message = f"رول های کاربر {response["first_name"]} {response["last_name"]}:\n" + "\n".join(
+                role["name"] for role in response["roles"]
+            )
+            await update.effective_message.reply_text(message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
 
 if __name__ == "__main__":
