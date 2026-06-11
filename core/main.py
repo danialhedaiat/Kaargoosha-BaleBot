@@ -61,6 +61,7 @@ class BaleBot():
                                                   pattern=r"^select_assign_role_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.apply_for_loan, pattern="^apply_for_loan$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_duration_selected, pattern=r"^loan_duration_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -472,6 +473,20 @@ class BaleBot():
                 "مدت زمان بازپرداخت وام را انتخاب کنید:",
                 reply_markup=reply_markup
             )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_duration_selected(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+
+            match = re.match(r"^loan_duration_(\d+)$", query.data)
+            duration = int(match.group(1))
+
+            context.user_data["loan_duration"] = duration
+            context.user_data["loan_flow"] = "confirm"
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
