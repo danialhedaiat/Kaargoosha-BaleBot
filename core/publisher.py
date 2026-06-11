@@ -104,9 +104,13 @@ class BotPublisher:
         response = self.publish(exchange="user", routing_key="user.get_user_by_username", message=message)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
-    def check_admin_menu_permission(self, body, callback, callback_kwargs):
+    def check_admin_menu_permission(self, body):
         response = self.publish(exchange="user", routing_key="user.check_admin_menu_permission", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
+        return json.loads(response["response"])
+
+    def check_loan_create_permission(self, body):
+        response = self.publish(exchange="user", routing_key="user.check_loan_create_permission", message=body)
+        return json.loads(response["response"])
 
     def create_role(self, body, callback, callback_kwargs):
         response = self.publish(exchange="role", routing_key="role.create", message=body)

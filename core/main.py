@@ -59,6 +59,7 @@ class BaleBot():
                                                   pattern=r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"))
         self.app.add_handler(CallbackQueryHandler(self.selected_assign_role,
                                                   pattern=r"^select_assign_role_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -129,16 +130,22 @@ class BaleBot():
             context.user_data["last_name"] = response["last_name"]
             context.user_data["phone_number"] = response["phone_number"]
             context.user_data["user_id"] = response["id"]
-            if context.user_data["phone_number"] == settings.GOD:
-                keyboard = [
-                    [InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")],
-                    [InlineKeyboardButton("منوی ادمین", callback_data="admin_menu")],
-                ]
+            context.user_data["chat_id"] = update.effective_chat.id
 
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text(
-                    f"{context.user_data["first_name"]} عزیز به کارگشا خوش آمدی\nلطفا یکی از منو های زیر را انتخاب کن",
-                    reply_markup=reply_markup)
+            admin_perm_response = self.publisher.check_admin_menu_permission(context.user_data)
+            has_admin_permission = admin_perm_response.get("status") == True
+
+            if has_admin_permission:
+                context.bot_data["admin_chat_id"] = update.effective_chat.id
+
+            keyboard = [[InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")]]
+            if has_admin_permission:
+                keyboard.append([InlineKeyboardButton("منوی ادمین", callback_data="admin_menu")])
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(
+                f"{context.user_data['first_name']} عزیز به کارگشا خوش آمدی\nلطفا یکی از منو های زیر را انتخاب کن",
+                reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -395,8 +402,8 @@ class BaleBot():
     async def check_admin_menu_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await update.effective_message.reply_text("درحال چک کردن دسترسی شما...")
-            self.publisher.check_admin_menu_permission(context.user_data, self.admin_menu,
-                                                       {"update": update, "context": context})
+            response = self.publisher.check_admin_menu_permission(context.user_data)
+            await self.admin_menu(update, context, response)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -423,6 +430,22 @@ class BaleBot():
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def personal_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            perm_response = self.publisher.check_loan_create_permission(context.user_data)
+            has_loan_permission = perm_response.get("status") == True
+
+            keyboard = []
+            if has_loan_permission:
+                keyboard.append([InlineKeyboardButton("درخواست وام", callback_data="apply_for_loan")])
+            keyboard.append([InlineKeyboardButton("بازگشت", callback_data="sign_in")])
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("منوی شخصی", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
