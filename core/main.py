@@ -62,6 +62,8 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.apply_for_loan, pattern="^apply_for_loan$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_duration_selected, pattern=r"^loan_duration_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_confirm, pattern="^loan_confirm$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_cancel, pattern="^loan_cancel$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -487,6 +489,34 @@ class BaleBot():
 
             context.user_data["loan_duration"] = duration
             context.user_data["loan_flow"] = "confirm"
+
+            summary = (
+                f"خلاصه درخواست وام:\n"
+                f"مدت بازپرداخت: {duration} ماه\n\n"
+                f"مبلغ وام پس از بررسی توسط ادمین تعیین می‌شود."
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ تایید", callback_data="loan_confirm"),
+                    InlineKeyboardButton("❌ انصراف", callback_data="loan_cancel"),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text(summary, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
+
+    async def loan_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["loan_flow"] = None
+            context.user_data["loan_duration"] = None
+            keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("درخواست وام لغو شد.", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
