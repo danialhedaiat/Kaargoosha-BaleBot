@@ -112,6 +112,14 @@ class BotPublisher:
         response = self.publish(exchange="user", routing_key="user.check_loan_create_permission", message=body)
         return json.loads(response["response"])
 
+    def update_chat_id(self, body):
+        try:
+            message = body | self.SOCIAL_MEDIA
+            self.publish(exchange="user", routing_key="user.update_chat_id", message=message)
+        except Exception as exc:
+            logger.error(traceback.format_exc())
+            logger.error(exc)
+
     def create_loan_request(self, body, callback, callback_kwargs):
         response = self.publish(exchange="loan", routing_key="loan.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

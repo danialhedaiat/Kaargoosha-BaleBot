@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler, \
     MessageHandler, filters
 
+from core.consumer import BotConsumer
 from core.publisher import BotPublisher
 from core.settings import logger, settings
 
@@ -27,6 +28,7 @@ class BaleBot():
         self.app = self.app.build()
 
         self.publisher = BotPublisher()
+        self.consumer = BotConsumer(app=self)
 
         self.add_handler()
 
@@ -64,6 +66,8 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.loan_duration_selected, pattern=r"^loan_duration_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_confirm, pattern="^loan_confirm$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_cancel, pattern="^loan_cancel$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_approve, pattern=r"^loan_approve_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_reject, pattern=r"^loan_reject_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -73,6 +77,8 @@ class BaleBot():
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+        self.consumer.start_consuming(loop)
 
         try:
             loop.run_until_complete(self.app.run_polling())
@@ -138,6 +144,11 @@ class BaleBot():
             context.user_data["phone_number"] = response["phone_number"]
             context.user_data["user_id"] = response["id"]
             context.user_data["chat_id"] = update.effective_chat.id
+
+            self.publisher.update_chat_id({
+                "user_id": response["id"],
+                "chat_id": update.effective_chat.id,
+            })
 
             admin_perm_response = self.publisher.check_admin_menu_permission(context.user_data)
             has_admin_permission = admin_perm_response.get("status") == True
@@ -551,6 +562,61 @@ class BaleBot():
             keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.effective_message.reply_text("درخواست وام لغو شد.", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def handle_notify_loan_request(self, data: dict):
+        try:
+            recipients = data.get("recipients", [])
+            chat_ids = [
+                r["chat_id"] for r in recipients
+                if r.get("social_media") == settings.SOCIAL_MEDIA
+            ]
+            loan_id = data.get("loan_id")
+            user_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
+            duration_months = data.get("duration_months")
+
+            text = (
+                f"درخواست وام جدید:\n"
+                f"کاربر: {user_name}\n"
+                f"مدت بازپرداخت: {duration_months} ماه\n\n"
+                f"لطفا یکی از گزینه های زیر را انتخاب کنید:"
+            )
+            keyboard = [[
+                InlineKeyboardButton("✅ تایید", callback_data=f"loan_approve_{loan_id}"),
+                InlineKeyboardButton("❌ رد کردن", callback_data=f"loan_reject_{loan_id}"),
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            for chat_id in chat_ids:
+                await self.app.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            match = re.match(r"^loan_approve_(\d+)$", query.data)
+            loan_id = match.group(1)
+            await update.effective_message.reply_text(
+                f"درخواست وام {loan_id} در حال پردازش تایید است. (به زودی)"
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            match = re.match(r"^loan_reject_(\d+)$", query.data)
+            loan_id = match.group(1)
+            await update.effective_message.reply_text(
+                f"درخواست وام {loan_id} در حال پردازش رد است. (به زودی)"
+            )
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
