@@ -112,6 +112,10 @@ class BotPublisher:
         response = self.publish(exchange="user", routing_key="user.check_loan_create_permission", message=body)
         return json.loads(response["response"])
 
+    def create_loan_request(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="loan", routing_key="loan.create", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def create_role(self, body, callback, callback_kwargs):
         response = self.publish(exchange="role", routing_key="role.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

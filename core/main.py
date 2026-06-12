@@ -508,7 +508,41 @@ class BaleBot():
             logger.error(e)
 
     async def loan_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        pass
+        try:
+            body = {
+                "user_id": context.user_data["user_id"],
+                "duration_months": context.user_data["loan_duration"],
+                "member_chat_id": context.user_data.get("chat_id"),
+            }
+            self.publisher.create_loan_request(
+                body=body,
+                callback=self.loan_request_saved,
+                callback_kwargs={"update": update, "context": context}
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_request_saved(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            context.user_data["loan_flow"] = None
+            keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            if "error" in response:
+                await update.effective_message.reply_text(
+                    f"متاسفانه درخواست ثبت نشد:\n{response['error']}",
+                    reply_markup=reply_markup
+                )
+                return
+
+            await update.effective_message.reply_text(
+                "درخواست شما ثبت شد و در انتظار بررسی است ✅",
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
     async def loan_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
