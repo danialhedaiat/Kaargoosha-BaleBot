@@ -68,6 +68,8 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.loan_cancel, pattern="^loan_cancel$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_approve, pattern=r"^loan_approve_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_reject, pattern=r"^loan_reject_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_client_history, pattern=r"^loan_history_(\d+)_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.loan_history_back, pattern=r"^loan_history_back_(\d+)_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -641,6 +643,7 @@ class BaleBot():
                 if r.get("social_media") == settings.SOCIAL_MEDIA
             ]
             loan_id = data.get("loan_id")
+            user_id = data.get("user_id")
             user_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
             duration_months = data.get("duration_months")
 
@@ -650,10 +653,15 @@ class BaleBot():
                 f"مدت بازپرداخت: {duration_months} ماه\n\n"
                 f"لطفا یکی از گزینه های زیر را انتخاب کنید:"
             )
-            keyboard = [[
-                InlineKeyboardButton("✅ تایید", callback_data=f"loan_approve_{loan_id}"),
-                InlineKeyboardButton("❌ رد کردن", callback_data=f"loan_reject_{loan_id}"),
-            ]]
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ تایید", callback_data=f"loan_approve_{loan_id}"),
+                    InlineKeyboardButton("❌ رد کردن", callback_data=f"loan_reject_{loan_id}"),
+                ],
+                [
+                    InlineKeyboardButton("📋 سابقه مشتری", callback_data=f"loan_history_{loan_id}_{user_id}"),
+                ],
+            ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             for chat_id in chat_ids:
@@ -712,6 +720,84 @@ class BaleBot():
                 await update.effective_message.reply_text(f"❌ خطا در رد وام: {error_msg}")
                 return
             await update.effective_message.reply_text("✅ وام رد شد")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_client_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            match = re.match(r"^loan_history_(\d+)_(\d+)$", query.data)
+            loan_id = int(match.group(1))
+            user_id = int(match.group(2))
+            self.publisher.get_client_history(
+                body={"user_id": user_id},
+                callback=self.after_loan_client_history,
+                callback_kwargs={"update": update, "context": context, "loan_id": loan_id, "user_id": user_id},
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def after_loan_client_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response, loan_id: int, user_id: int):
+        try:
+            if response is None or "error" in response:
+                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+                await update.effective_message.reply_text(f"❌ خطا در دریافت سابقه: {error_msg}")
+                return
+
+            total_loans = response.get("total_loans", 0)
+            payment_rate = response.get("payment_rate")
+            loans = response.get("loans", [])
+
+            lines = ["📋 سابقه وام مشتری\n"]
+            lines.append(f"تعداد کل درخواست‌ها: {total_loans}")
+            if payment_rate is not None:
+                lines.append(f"نرخ پرداخت به موقع: {payment_rate}%")
+
+            status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+            for loan in loans:
+                status_fa = status_map.get(loan.get("status"), loan.get("status"))
+                line = f"\n• وام {loan['id']}: {status_fa}"
+                if loan.get("amount"):
+                    line += f" | {loan['amount']:,} تومان"
+                if loan.get("installments_count"):
+                    line += f"\n  اقساط: {loan['paid_count']}/{loan['installments_count']} پرداخت شده"
+                    if loan.get("overdue_count"):
+                        line += f" | {loan['overdue_count']} معوق"
+                if loan.get("rejection_reason"):
+                    line += f"\n  دلیل رد: {loan['rejection_reason']}"
+                lines.append(line)
+
+            text = "\n".join(lines)
+            keyboard = [[InlineKeyboardButton("🔙 بازگشت", callback_data=f"loan_history_back_{loan_id}_{user_id}")]]
+            await update.effective_message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def loan_history_back(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            match = re.match(r"^loan_history_back_(\d+)_(\d+)$", query.data)
+            loan_id = int(match.group(1))
+            user_id = int(match.group(2))
+            text = (
+                f"درخواست وام شماره {loan_id}\n"
+                f"لطفا یکی از گزینه های زیر را انتخاب کنید:"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ تایید", callback_data=f"loan_approve_{loan_id}"),
+                    InlineKeyboardButton("❌ رد کردن", callback_data=f"loan_reject_{loan_id}"),
+                ],
+                [
+                    InlineKeyboardButton("📋 سابقه مشتری", callback_data=f"loan_history_{loan_id}_{user_id}"),
+                ],
+            ]
+            await update.effective_message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
