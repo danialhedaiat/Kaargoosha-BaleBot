@@ -931,8 +931,8 @@ class BaleBot():
 
         response = self.publisher.get_all_permissions(body=body)
         keyboard = [
-            [InlineKeyboardButton(permission, callback_data=f"add_selected_permission_{role_id}_{permission}")] for
-            permission in response.keys()
+            [InlineKeyboardButton(key, callback_data=f"add_selected_permission_{role_id}_{value}")] for
+            key, value in response.items()
         ]
         keyboard += [
             [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
