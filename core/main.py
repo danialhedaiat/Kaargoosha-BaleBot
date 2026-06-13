@@ -623,6 +623,16 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+    async def handle_notify_loan_rejected(self, data: dict):
+        try:
+            member_chat_id = data.get("member_chat_id")
+            rejection_reason = data.get("rejection_reason", "")
+            text = f"❌ درخواست وام شما رد شد\nدلیل: {rejection_reason}"
+            await self.app.bot.send_message(chat_id=member_chat_id, text=text)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
     async def handle_notify_loan_request(self, data: dict):
         try:
             recipients = data.get("recipients", [])
