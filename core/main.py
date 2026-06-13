@@ -605,6 +605,24 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+    async def handle_notify_loan_approved(self, data: dict):
+        try:
+            member_chat_id = data.get("member_chat_id")
+            amount = data.get("amount")
+            monthly_amount = data.get("monthly_amount")
+            first_due_date = data.get("first_due_date")
+
+            text = (
+                f"✅ وام شما تایید شد\n"
+                f"مبلغ: {amount:,} تومان\n"
+                f"قسط ماهانه: {monthly_amount:,} تومان\n"
+                f"اولین قسط: {first_due_date}"
+            )
+            await self.app.bot.send_message(chat_id=member_chat_id, text=text)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
     async def handle_notify_loan_request(self, data: dict):
         try:
             recipients = data.get("recipients", [])
