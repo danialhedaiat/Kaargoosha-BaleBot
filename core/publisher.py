@@ -169,7 +169,9 @@ class BotPublisher:
     def run_callback(callback, callback_kwargs, response):
         try:
             logger.info(response)
-            response["response"] = json.loads(response["response"])
+            raw = response.get("response")
+            if isinstance(raw, (str, bytes, bytearray)):
+                response["response"] = json.loads(raw)
             callback_kwargs |= response
             asyncio.create_task(callback(**callback_kwargs))
         except Exception as exc:

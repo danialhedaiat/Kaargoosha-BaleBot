@@ -128,7 +128,7 @@ class BaleBot():
     async def after_sign_in(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
         try:
 
-            if "error" in response:
+            if response is None or "error" in response:
                 keyboard = [
                     [InlineKeyboardButton("بازگشت به شروع", callback_data="start")],
                 ]
@@ -454,8 +454,12 @@ class BaleBot():
 
     async def personal_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
-            perm_response = self.publisher.check_loan_create_permission(context.user_data)
-            has_loan_permission = perm_response.get("status") == True
+            has_loan_permission = False
+            try:
+                perm_response = self.publisher.check_loan_create_permission(context.user_data)
+                has_loan_permission = perm_response.get("status") == True
+            except Exception:
+                pass
 
             keyboard = []
             if has_loan_permission:
