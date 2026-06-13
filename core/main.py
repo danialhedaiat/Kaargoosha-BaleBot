@@ -479,27 +479,20 @@ class BaleBot():
             logger.error(e)
 
     async def admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            if response["status"] == True:
-                context.user_data["flow"] = "admin_menu"
-                keyboard = [
-                    [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
-                    [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
-                ]
-
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("پلن ادمین",
-                                                          reply_markup=reply_markup)
-            else:
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
-                ]
-
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if response.get("status") == True:
+            context.user_data["flow"] = "admin_menu"
+            keyboard = [
+                [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
+                [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("پلن ادمین", reply_markup=reply_markup)
+        else:
+            keyboard = [
+                [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup=reply_markup)
 
     async def role_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -590,41 +583,37 @@ class BaleBot():
             logger.error(e)
 
     async def loan_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            body = {
-                "user_id": context.user_data["user_id"],
-                "duration_months": context.user_data["loan_duration"],
-                "member_chat_id": context.user_data.get("chat_id"),
-            }
-            self.publisher.create_loan_request(
-                body=body,
-                callback=self.loan_request_saved,
-                callback_kwargs={"update": update, "context": context}
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        body = {
+            "user_id": context.user_data["user_id"],
+            "duration_months": context.user_data["loan_duration"],
+            "member_chat_id": context.user_data.get("chat_id"),
+        }
+        self.publisher.create_loan_request(
+            body=body,
+            callback=self.loan_request_saved,
+            callback_kwargs={"update": update, "context": context}
+        )
 
     async def loan_request_saved(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            context.user_data["loan_flow"] = None
-            keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        context.user_data["loan_flow"] = None
+        keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-            if "error" in response:
-                await update.effective_message.reply_text(
-                    f"متاسفانه درخواست ثبت نشد:\n{response['error']}",
-                    reply_markup=reply_markup
-                )
-                return
-
+        if not response or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
             await update.effective_message.reply_text(
-                "درخواست شما ثبت شد و در انتظار بررسی است ✅",
+                f"متاسفانه درخواست ثبت نشد:\n{error_msg}",
                 reply_markup=reply_markup
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            return
+
+        await update.effective_message.reply_text(
+            "درخواست شما ثبت شد و در انتظار بررسی است ✅",
+            reply_markup=reply_markup
+        )
 
     async def loan_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -715,19 +704,15 @@ class BaleBot():
             logger.error(e)
 
     async def after_loan_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در تایید وام: {error_msg}")
-                return
-            loan_id = response.get("id")
-            amount = response.get("amount")
-            await update.effective_message.reply_text(
-                f"✅ وام شماره {loan_id} با مبلغ {amount:,} تومان تایید شد"
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if response is None or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"❌ خطا در تایید وام: {error_msg}")
+            return
+        loan_id = response.get("id")
+        amount = response.get("amount")
+        await update.effective_message.reply_text(
+            f"✅ وام شماره {loan_id} با مبلغ {amount:,} تومان تایید شد"
+        )
 
     async def loan_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -744,68 +729,56 @@ class BaleBot():
             logger.error(e)
 
     async def after_loan_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در رد وام: {error_msg}")
-                return
-            await update.effective_message.reply_text("✅ وام رد شد")
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if response is None or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"❌ خطا در رد وام: {error_msg}")
+            return
+        await update.effective_message.reply_text("✅ وام رد شد")
 
     async def loan_client_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
-            match = re.match(r"^loan_history_(\d+)_(\d+)$", query.data)
-            loan_id = int(match.group(1))
-            user_id = int(match.group(2))
-            self.publisher.get_client_history(
-                body={"user_id": user_id},
-                callback=self.after_loan_client_history,
-                callback_kwargs={"update": update, "context": context, "loan_id": loan_id, "user_id": user_id},
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        query = update.callback_query
+        await query.answer()
+        match = re.match(r"^loan_history_(\d+)_(\d+)$", query.data)
+        loan_id = int(match.group(1))
+        user_id = int(match.group(2))
+        self.publisher.get_client_history(
+            body={"user_id": user_id},
+            callback=self.after_loan_client_history,
+            callback_kwargs={"update": update, "context": context, "loan_id": loan_id, "user_id": user_id},
+        )
 
     async def after_loan_client_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response, loan_id: int, user_id: int):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در دریافت سابقه: {error_msg}")
-                return
+        if response is None or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"❌ خطا در دریافت سابقه: {error_msg}")
+            return
 
-            total_loans = response.get("total_loans", 0)
-            payment_rate = response.get("payment_rate")
-            loans = response.get("loans", [])
+        total_loans = response.get("total_loans", 0)
+        payment_rate = response.get("payment_rate")
+        loans = response.get("loans", [])
 
-            lines = ["📋 سابقه وام مشتری\n"]
-            lines.append(f"تعداد کل درخواست‌ها: {total_loans}")
-            if payment_rate is not None:
-                lines.append(f"نرخ پرداخت به موقع: {payment_rate}%")
+        lines = ["📋 سابقه وام مشتری\n"]
+        lines.append(f"تعداد کل درخواست‌ها: {total_loans}")
+        if payment_rate is not None:
+            lines.append(f"نرخ پرداخت به موقع: {payment_rate}%")
 
-            status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
-            for loan in loans:
-                status_fa = status_map.get(loan.get("status"), loan.get("status"))
-                line = f"\n• وام {loan['id']}: {status_fa}"
-                if loan.get("amount"):
-                    line += f" | {loan['amount']:,} تومان"
-                if loan.get("installments_count"):
-                    line += f"\n  اقساط: {loan['paid_count']}/{loan['installments_count']} پرداخت شده"
-                    if loan.get("overdue_count"):
-                        line += f" | {loan['overdue_count']} معوق"
-                if loan.get("rejection_reason"):
-                    line += f"\n  دلیل رد: {loan['rejection_reason']}"
-                lines.append(line)
+        status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+        for loan in loans:
+            status_fa = status_map.get(loan.get("status"), loan.get("status"))
+            line = f"\n• وام {loan['id']}: {status_fa}"
+            if loan.get("amount"):
+                line += f" | {loan['amount']:,} تومان"
+            if loan.get("installments_count"):
+                line += f"\n  اقساط: {loan['paid_count']}/{loan['installments_count']} پرداخت شده"
+                if loan.get("overdue_count"):
+                    line += f" | {loan['overdue_count']} معوق"
+            if loan.get("rejection_reason"):
+                line += f"\n  دلیل رد: {loan['rejection_reason']}"
+            lines.append(line)
 
-            text = "\n".join(lines)
-            keyboard = [[InlineKeyboardButton("🔙 بازگشت", callback_data=f"loan_history_back_{loan_id}_{user_id}")]]
-            await update.effective_message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        text = "\n".join(lines)
+        keyboard = [[InlineKeyboardButton("🔙 بازگشت", callback_data=f"loan_history_back_{loan_id}_{user_id}")]]
+        await update.effective_message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
     async def loan_history_back(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -843,29 +816,32 @@ class BaleBot():
             [InlineKeyboardButton("انتخاب رول", callback_data="select_role")],
             [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
         ]
-
         reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if not response or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"متاسفانه رول ساخته نشد:\n{error_msg}", reply_markup=reply_markup)
+            return
+
         await update.effective_message.reply_text(
-            f"رول جدید شما با نام\n{response["name"]}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
+            f"رول جدید شما با نام\n{response['name']}\n با موفقیت ساخته شد\nدر ادامه یکی از گزینه های زیر را انتخاب کنید",
             reply_markup=reply_markup)
 
     async def get_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            body = {"requested_by": context.user_data["user_id"]}
-            response = self.publisher.get_roles(body=body)
-            if "error" in response:
-                logger.error(response["error"])
-                pass
-            keyboard = [
-                [InlineKeyboardButton(role["name"], callback_data=f"select_role_{role['id']}")] for role in
-                response
-            ]
-            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        body = {"requested_by": context.user_data["user_id"]}
+        response = self.publisher.get_roles(body=body)
+        if not response or not isinstance(response, list):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        keyboard = [
+            [InlineKeyboardButton(role["name"], callback_data=f"select_role_{role['id']}")] for role in response
+        ]
+        keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
 
     async def selected_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -894,196 +870,161 @@ class BaleBot():
             logger.error(e)
 
     async def check_role_permissions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^check_role_permissions_(\d+)$"
-            match = re.match(pattern, query.data)
+        pattern = r"^check_role_permissions_(\d+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
 
-            role_id = match.group(1)
+        body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+        response = self.publisher.get_role_permissions(body=body)
 
-            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-            response = self.publisher.get_role_permissions(
-                body=body)
+        if not response or not isinstance(response, list):
+            await update.effective_message.reply_text("دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
+            return
 
-            if not response:
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")],
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text(f"دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
-                return
-
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            logger.info(response)
-
-            message = f"دسترسی هایی که برای این رول {response[0]["role"]["name"]} پیدا شد به این ترتیب است:\n" + "\n".join(
-                permission["codename"]
-                for permission in response
-            )
-            await update.effective_message.reply_text(message, reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        message = f"دسترسی هایی که برای این رول {response[0]['role']['name']} پیدا شد به این ترتیب است:\n" + "\n".join(
+            permission["codename"] for permission in response
+        )
+        await update.effective_message.reply_text(message, reply_markup=reply_markup)
 
     async def add_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
         query = update.callback_query
         await query.answer()
 
         pattern = r"^add_role_permission_(\d+)$"
         match = re.match(pattern, query.data)
-
         role_id = match.group(1)
 
         body = {"requested_by": context.user_data["user_id"]}
-
         response = self.publisher.get_all_permissions(body=body)
+
+        if not response or not isinstance(response, dict):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+
         keyboard = [
-            [InlineKeyboardButton(key, callback_data=f"add_selected_permission_{role_id}_{value}")] for
-            key, value in response.items()
+            [InlineKeyboardButton(key, callback_data=f"add_selected_permission_{role_id}_{value}")]
+            for key, value in response.items()
         ]
-        keyboard += [
-            [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
-        ]
+        keyboard += [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
 
     async def add_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^add_selected_permission_(\d+)_([A-Z_]+)$"
-            match = re.match(pattern, query.data)
+        pattern = r"^add_selected_permission_(\d+)_([A-Z_]+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
+        permission = match.group(2)
 
-            role_id = match.group(1)
-            permission = match.group(2)
+        body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
+        response = self.publisher.add_role_permission(body=body)
 
-            body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
-
-            response = self.publisher.add_role_permission(body=body)
-
-            if "error" in response and response["error"].startswith("(sqlite3.IntegrityError) UNIQUE constraint"):
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")],
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("این دسترسی قبلا یه رول داده شده است",
-                                                          reply_markup=reply_markup)
-                return
-
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
-            ]
+        if response and "error" in response and response["error"].startswith("(sqlite3.IntegrityError) UNIQUE constraint"):
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("دسترسی به رول داده شد", reply_markup=reply_markup)
+            await update.effective_message.reply_text("این دسترسی قبلا یه رول داده شده است", reply_markup=reply_markup)
+            return
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("دسترسی به رول داده شد", reply_markup=reply_markup)
 
     async def revoke_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^revoke_role_permission_(\d+)$"
-            match = re.match(pattern, query.data)
+        pattern = r"^revoke_role_permission_(\d+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
 
-            role_id = match.group(1)
+        body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+        response = self.publisher.get_role_permissions(body=body)
 
-            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
-
-            response = self.publisher.get_role_permissions(
-                body=body)
-            keyboard = [
-                [InlineKeyboardButton(permission["codename"],
-                                      callback_data=f"revoke_selected_permission_{role_id}_{permission["codename"]}")]
-                for
-                permission in response
-            ]
-            keyboard += [
-                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
-            ]
+        if not response or not isinstance(response, list):
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            await update.effective_message.reply_text("دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
+            return
+
+        keyboard = [
+            [InlineKeyboardButton(permission["codename"],
+                                  callback_data=f"revoke_selected_permission_{role_id}_{permission['codename']}")]
+            for permission in response
+        ]
+        keyboard += [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
 
     async def revoke_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"
-            match = re.match(pattern, query.data)
+        pattern = r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
+        permission = match.group(2)
 
-            role_id = match.group(1)
-            permission = match.group(2)
+        body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
+        response = self.publisher.revoke_role_permission(body=body)
 
-            body = {"requested_by": context.user_data["user_id"], "role_id": role_id, "codename": permission}
-
-            response = self.publisher.revoke_role_permission(body=body)
-
-            if "error" in response:
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")],
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("این دسترسی پیدا نشد",
-                                                          reply_markup=reply_markup)
-                return
-
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
-            ]
+        if not response or "error" in response:
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("دسترسی با موفقیت حذف شد",
-                                                      reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            await update.effective_message.reply_text("این دسترسی پیدا نشد", reply_markup=reply_markup)
+            return
+
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("دسترسی با موفقیت حذف شد", reply_markup=reply_markup)
 
     async def delete_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^delete_role_(\d+)$"
-            match = re.match(pattern, query.data)
+        pattern = r"^delete_role_(\d+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
 
-            role_id = match.group(1)
+        body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
+        response = self.publisher.delete_role(body=body)
 
-            body = {"requested_by": context.user_data["user_id"], "role_id": role_id}
-
-            response = self.publisher.delete_role(body=body)
-
-            if "error" in response:
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                logger.info(type(response))
-                logger.info(response)
-                await update.effective_message.reply_text(
-                    f"در انجام عملیات با یک مشکل مواجه شدیم به پشتیبانی پیام دهید:\n{response}",
-                    reply_markup=reply_markup)
-                return
-
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data=f"select_role")]
-            ]
+        if not response or "error" in response:
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("رول با موفقیت حذف شد", reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            await update.effective_message.reply_text(
+                f"در انجام عملیات با یک مشکل مواجه شدیم به پشتیبانی پیام دهید:\n{response}",
+                reply_markup=reply_markup)
+            return
+
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data="select_role")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("رول با موفقیت حذف شد", reply_markup=reply_markup)
 
     async def assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -1096,72 +1037,54 @@ class BaleBot():
             logger.error(e)
 
     async def select_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            phone_number = context.chat_data["phone_number"]
-            body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number}
-            response = self.publisher.get_roles(body=body)
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        phone_number = context.chat_data.get("phone_number")
+        body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number}
+        response = self.publisher.get_roles(body=body)
 
-            if "error" in response:
-                logger.error(response["error"])
-                pass
-            keyboard = [
-                [InlineKeyboardButton(role["name"], callback_data=f"select_assign_role_{role['id']}")] for role in
-                response
-            ]
-            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
+        if not response or not isinstance(response, list):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        keyboard = [
+            [InlineKeyboardButton(role["name"], callback_data=f"select_assign_role_{role['id']}")] for role in response
+        ]
+        keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
 
     async def selected_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^select_assign_role_(\d+)$"
+        pattern = r"^select_assign_role_(\d+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
 
-            match = re.match(pattern, query.data)
-
-            role_id = match.group(1)
-
-            phone_number = context.chat_data["phone_number"]
-
-            body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number, "role_id": role_id}
-
-            self.publisher.assign_user_role(body=body, callback=self.assigned_role, callback_kwargs={"update": update,
-                                                                                                     "context": context})
-
-
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        phone_number = context.chat_data.get("phone_number")
+        body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number, "role_id": role_id}
+        self.publisher.assign_user_role(body=body, callback=self.assigned_role,
+                                        callback_kwargs={"update": update, "context": context})
 
     async def assigned_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            if "error" in response:
-                keyboard = [
-                    [InlineKeyboardButton("بازگشت", callback_data=f"assign_role")],
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text(f"متاسفانه با مشکل مواجه شد:\n{response["error"]}",
-                                                          reply_markup=reply_markup)
-                return
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data=f"admin_menu")],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
-                f"رول با موفقیت به یوزر {response["first_name"]} {response["last_name"]} اضافه شد.\nرول های این کاربر:\n" + "\n".join(
-                    role["name"] for role in response["roles"]
-                ),
-                reply_markup=reply_markup)
+        keyboard_back = [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard_back)
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        if not response or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"متاسفانه با مشکل مواجه شد:\n{error_msg}", reply_markup=reply_markup)
+            return
+
+        await update.effective_message.reply_text(
+            f"رول با موفقیت به یوزر {response['first_name']} {response['last_name']} اضافه شد.\nرول های این کاربر:\n" + "\n".join(
+                role["name"] for role in response["roles"]
+            ),
+            reply_markup=reply_markup)
 
     async def user_role_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["user_role_list_flag"] = True
@@ -1174,27 +1097,21 @@ class BaleBot():
                                                   reply_markup=reply_markup)
 
     async def recived_user_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-            if not response or "error" in response:
-                await update.effective_message.reply_text("کاربری با این شماره یافت نشد", reply_markup=reply_markup)
-                return
+        if not response or "error" in response:
+            await update.effective_message.reply_text("کاربری با این شماره یافت نشد", reply_markup=reply_markup)
+            return
 
-            if not response.get("roles"):
-                await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup)
-                return
+        if not response.get("roles"):
+            await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup)
+            return
 
-            message = f"رول های کاربر {response["first_name"]} {response["last_name"]}:\n" + "\n".join(
-                role["name"] for role in response["roles"]
-            )
-            await update.effective_message.reply_text(message, reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        message = f"رول های کاربر {response['first_name']} {response['last_name']}:\n" + "\n".join(
+            role["name"] for role in response["roles"]
+        )
+        await update.effective_message.reply_text(message, reply_markup=reply_markup)
 
     async def delete_user_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -1213,73 +1130,58 @@ class BaleBot():
             logger.error(e)
 
     async def show_user_roles_for_delete(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            keyboard_back = [
-                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
-            ]
-            reply_markup_back = InlineKeyboardMarkup(keyboard_back)
+        keyboard_back = [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup_back = InlineKeyboardMarkup(keyboard_back)
 
-            if not response or "error" in response:
-                await update.effective_message.reply_text("کاربری با این شماره یافت نشد",
-                                                          reply_markup=reply_markup_back)
-                return
+        if not response or "error" in response:
+            await update.effective_message.reply_text("کاربری با این شماره یافت نشد", reply_markup=reply_markup_back)
+            return
 
-            if not response.get("roles"):
-                await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup_back)
-                return
+        if not response.get("roles"):
+            await update.effective_message.reply_text("این کاربر هیچ رولی ندارد", reply_markup=reply_markup_back)
+            return
 
-            context.chat_data["delete_target_user_id"] = response["id"]
+        context.chat_data["delete_target_user_id"] = response["id"]
 
-            keyboard = [
-                [InlineKeyboardButton(role["name"], callback_data=f"select_delete_user_role_{role['id']}")]
-                for role in response["roles"]
-            ]
-            keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
-                f"رول مورد نظر برای حذف از کاربر {response['first_name']} {response['last_name']} را انتخاب کنید:",
-                reply_markup=reply_markup
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        keyboard = [
+            [InlineKeyboardButton(role["name"], callback_data=f"select_delete_user_role_{role['id']}")]
+            for role in response["roles"]
+        ]
+        keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            f"رول مورد نظر برای حذف از کاربر {response['first_name']} {response['last_name']} را انتخاب کنید:",
+            reply_markup=reply_markup
+        )
 
     async def selected_delete_user_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
 
-            pattern = r"^select_delete_user_role_(\d+)$"
-            match = re.match(pattern, query.data)
-            role_id = match.group(1)
+        pattern = r"^select_delete_user_role_(\d+)$"
+        match = re.match(pattern, query.data)
+        role_id = match.group(1)
 
-            user_id = context.chat_data["delete_target_user_id"]
-            body = {"requested_by": context.user_data["user_id"], "user_id": user_id, "role_id": role_id}
-
-            self.publisher.revoke_user_role(body=body, callback=self.user_role_revoked,
-                                            callback_kwargs={"update": update, "context": context})
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        user_id = context.chat_data.get("delete_target_user_id")
+        body = {"requested_by": context.user_data["user_id"], "user_id": user_id, "role_id": role_id}
+        self.publisher.revoke_user_role(body=body, callback=self.user_role_revoked,
+                                        callback_kwargs={"update": update, "context": context})
 
     async def user_role_revoked(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        try:
-            keyboard = [
-                [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        keyboard = [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-            if "error" in response:
-                await update.effective_message.reply_text(
-                    f"متاسفانه با مشکل مواجه شدیم:\n{response['error']}",
-                    reply_markup=reply_markup
-                )
-                return
+        if not response or "error" in response:
+            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(
+                f"متاسفانه با مشکل مواجه شدیم:\n{error_msg}", reply_markup=reply_markup
+            )
+            return
 
-            await update.effective_message.reply_text("رول با موفقیت از این کاربر حذف شد", reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        await update.effective_message.reply_text("رول با موفقیت از این کاربر حذف شد", reply_markup=reply_markup)
 
 
 if __name__ == "__main__":

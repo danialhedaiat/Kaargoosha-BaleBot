@@ -41,6 +41,8 @@ class BotConsumer:
     def on_notify(self, ch: BlockingChannel, method, properties: BasicProperties, body):
         try:
             data = msgpack.unpackb(body)
+            logger.info("-----------------")
+            logger.info(data)
 
             if method.routing_key == "notify.loan_request":
                 asyncio.run_coroutine_threadsafe(
