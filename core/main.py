@@ -75,6 +75,8 @@ class BaleBot():
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
 
+        self.app.add_error_handler(self.error_handler)
+
     def run(self):
         logger.info("Run Bale Bot")
 
@@ -92,6 +94,7 @@ class BaleBot():
         try:
             context.user_data["username"] = update.effective_user.username or str(update.effective_user.id)
             context.user_data["chat_id"] = update.effective_chat.id
+            context.user_data["flow"] = None
             context.user_data["phone_number_create_user_flag"] = None
             context.user_data["phone_number_join_user_flag"] = None
             context.user_data["firstname_flag"] = None
@@ -119,6 +122,16 @@ class BaleBot():
 
         except Exception as e:
             logger.error(e)
+
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE):
+        if isinstance(context.error, KeyError):
+            if update and hasattr(update, "effective_message") and update.effective_message:
+                await update.effective_message.reply_text(
+                    "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید"
+                )
+        else:
+            logger.error(traceback.format_exc())
+            logger.error(context.error)
 
     async def sign_in_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "sign_in"
