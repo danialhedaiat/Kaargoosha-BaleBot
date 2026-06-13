@@ -99,6 +99,7 @@ class BaleBot():
             context.user_data["loan_flow"] = None
             context.user_data["loan_amount"] = None
             context.user_data["loan_duration"] = None
+            context.user_data["loan_approve_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -306,6 +307,24 @@ class BaleBot():
                 body = {"phone_number": phone_number, "requested_by": context.user_data["user_id"]}
                 self.publisher.get_user_roles(body=body, callback=self.show_user_roles_for_delete,
                                               callback_kwargs={"update": update, "context": context})
+
+            elif context.user_data.get("loan_approve_flag"):
+                amount_text = update.message.text.strip()
+                if not amount_text.isdigit():
+                    await update.effective_message.reply_text("لطفا یک عدد صحیح وارد کنید")
+                    return
+                loan_id = context.user_data["loan_approve_flag"]
+                context.user_data["loan_approve_flag"] = None
+                body = {
+                    "loan_id": loan_id,
+                    "requested_by": context.user_data["user_id"],
+                    "amount": int(amount_text),
+                }
+                self.publisher.approve_loan(
+                    body=body,
+                    callback=self.after_loan_approve,
+                    callback_kwargs={"update": update, "context": context},
+                )
 
         except Exception as e:
             logger.error(traceback.format_exc())
@@ -604,9 +623,25 @@ class BaleBot():
             query = update.callback_query
             await query.answer()
             match = re.match(r"^loan_approve_(\d+)$", query.data)
-            loan_id = match.group(1)
+            loan_id = int(match.group(1))
+            context.user_data["loan_approve_flag"] = loan_id
             await update.effective_message.reply_text(
-                f"درخواست وام {loan_id} در حال پردازش تایید است. (به زودی)"
+                f"درخواست وام شماره {loan_id}\nلطفا مبلغ وام را به تومان وارد کنید:"
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def after_loan_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            if response is None or "error" in response:
+                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+                await update.effective_message.reply_text(f"❌ خطا در تایید وام: {error_msg}")
+                return
+            loan_id = response.get("id")
+            amount = response.get("amount")
+            await update.effective_message.reply_text(
+                f"✅ وام شماره {loan_id} با مبلغ {amount:,} تومان تایید شد"
             )
         except Exception as e:
             logger.error(traceback.format_exc())
