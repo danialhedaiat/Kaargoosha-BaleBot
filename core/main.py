@@ -100,6 +100,7 @@ class BaleBot():
             context.user_data["loan_amount"] = None
             context.user_data["loan_duration"] = None
             context.user_data["loan_approve_flag"] = None
+            context.user_data["loan_reject_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -323,6 +324,21 @@ class BaleBot():
                 self.publisher.approve_loan(
                     body=body,
                     callback=self.after_loan_approve,
+                    callback_kwargs={"update": update, "context": context},
+                )
+
+            elif context.user_data.get("loan_reject_flag"):
+                reason = update.message.text.strip()
+                loan_id = context.user_data["loan_reject_flag"]
+                context.user_data["loan_reject_flag"] = None
+                body = {
+                    "loan_id": loan_id,
+                    "requested_by": context.user_data["user_id"],
+                    "rejection_reason": reason,
+                }
+                self.publisher.reject_loan(
+                    body=body,
+                    callback=self.after_loan_reject,
                     callback_kwargs={"update": update, "context": context},
                 )
 
@@ -652,10 +668,22 @@ class BaleBot():
             query = update.callback_query
             await query.answer()
             match = re.match(r"^loan_reject_(\d+)$", query.data)
-            loan_id = match.group(1)
+            loan_id = int(match.group(1))
+            context.user_data["loan_reject_flag"] = loan_id
             await update.effective_message.reply_text(
-                f"درخواست وام {loan_id} در حال پردازش رد است. (به زودی)"
+                f"درخواست وام شماره {loan_id}\nلطفا دلیل رد کردن وام را وارد کنید:"
             )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def after_loan_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        try:
+            if response is None or "error" in response:
+                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+                await update.effective_message.reply_text(f"❌ خطا در رد وام: {error_msg}")
+                return
+            await update.effective_message.reply_text("✅ وام رد شد")
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)

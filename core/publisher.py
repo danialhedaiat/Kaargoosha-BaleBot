@@ -128,6 +128,10 @@ class BotPublisher:
         response = self.publish(exchange="loan", routing_key="loan.approve", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def reject_loan(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="loan", routing_key="loan.reject", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def create_role(self, body, callback, callback_kwargs):
         response = self.publish(exchange="role", routing_key="role.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
