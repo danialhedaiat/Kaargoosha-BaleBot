@@ -90,7 +90,7 @@ class BaleBot():
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
-            context.user_data["username"] = update.effective_user.username
+            context.user_data["username"] = update.effective_user.username or str(update.effective_user.id)
             context.user_data["phone_number_create_user_flag"] = None
             context.user_data["phone_number_join_user_flag"] = None
             context.user_data["firstname_flag"] = None
