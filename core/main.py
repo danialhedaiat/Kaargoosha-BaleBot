@@ -543,13 +543,13 @@ class BaleBot():
             context.user_data["loan_flow"] = "confirm"
 
             summary = (
-                f"خلاصه درخواست وام:\n"
+                f"درخواست وام\n"
                 f"مدت بازپرداخت: {duration} ماه\n\n"
-                f"مبلغ وام پس از بررسی توسط ادمین تعیین می‌شود."
+                f"آیا مطمئن هستید؟"
             )
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ تایید", callback_data="loan_confirm"),
+                    InlineKeyboardButton("✅ تایید و ارسال", callback_data="loan_confirm"),
                     InlineKeyboardButton("❌ انصراف", callback_data="loan_cancel"),
                 ]
             ]
