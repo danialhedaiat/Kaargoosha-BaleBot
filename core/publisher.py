@@ -106,11 +106,11 @@ class BotPublisher:
 
     def check_admin_menu_permission(self, body):
         response = self.publish(exchange="user", routing_key="user.check_admin_menu_permission", message=body)
-        return json.loads(response["response"])
+        return json.loads(response)
 
     def check_loan_create_permission(self, body):
         response = self.publish(exchange="user", routing_key="user.check_loan_create_permission", message=body)
-        return json.loads(response["response"])
+        return json.loads(response)
 
     def update_chat_id(self, body):
         try:
