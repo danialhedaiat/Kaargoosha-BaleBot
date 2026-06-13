@@ -71,6 +71,12 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.loan_reject, pattern=r"^loan_reject_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_client_history, pattern=r"^loan_history_(\d+)_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_history_back, pattern=r"^loan_history_back_(\d+)_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_menu, pattern="^loans_menu$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_all, pattern="^loans_all$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_pending, pattern="^loans_pending$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_approved, pattern="^loans_approved$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_rejected, pattern="^loans_rejected$"))
+        self.app.add_handler(CallbackQueryHandler(self.loans_filtered, pattern=r"^loans_(approved|rejected)_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_listener))
@@ -483,6 +489,7 @@ class BaleBot():
             context.user_data["flow"] = "admin_menu"
             keyboard = [
                 [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
+                [InlineKeyboardButton("وام ها", callback_data="loans_menu")],
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -553,6 +560,7 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
 
     async def loan_duration_selected(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -804,6 +812,128 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+    async def loans_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("📋 لیست وام ها", callback_data="loans_all")],
+            [InlineKeyboardButton("⏳ وام های در انتظار", callback_data="loans_pending")],
+            [InlineKeyboardButton("✅ وام های تایید شده", callback_data="loans_approved")],
+            [InlineKeyboardButton("❌ وام های رد شده", callback_data="loans_rejected")],
+            [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("مدیریت وام ها", reply_markup=reply_markup)
+
+    async def loans_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"requested_by": context.user_data["user_id"]}
+        self.publisher.get_loans(body=body, callback=self.show_loans_list,
+                                 callback_kwargs={"update": update, "context": context})
+
+    async def loans_pending(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"requested_by": context.user_data["user_id"], "status": "pending"}
+        self.publisher.get_loans(body=body, callback=self.show_loans_list,
+                                 callback_kwargs={"update": update, "context": context})
+
+    async def loans_approved(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("روز گذشته", callback_data="loans_approved_1")],
+            [InlineKeyboardButton("هفته گذشته", callback_data="loans_approved_7")],
+            [InlineKeyboardButton("ماه گذشته", callback_data="loans_approved_30")],
+            [InlineKeyboardButton("بازگشت", callback_data="loans_menu")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
+
+    async def loans_rejected(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("روز گذشته", callback_data="loans_rejected_1")],
+            [InlineKeyboardButton("هفته گذشته", callback_data="loans_rejected_7")],
+            [InlineKeyboardButton("ماه گذشته", callback_data="loans_rejected_30")],
+            [InlineKeyboardButton("بازگشت", callback_data="loans_menu")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text("بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
+
+    async def loans_filtered(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        match = re.match(r"^loans_(approved|rejected)_(\d+)$", query.data)
+        status = match.group(1)
+        days = int(match.group(2))
+        body = {"requested_by": context.user_data["user_id"], "status": status, "days": days}
+        self.publisher.get_loans(body=body, callback=self.show_loans_list,
+                                 callback_kwargs={"update": update, "context": context})
+
+    async def show_loans_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        keyboard_back = [[InlineKeyboardButton("بازگشت به منوی وام ها", callback_data="loans_menu")]]
+        reply_markup_back = InlineKeyboardMarkup(keyboard_back)
+
+        if not response or isinstance(response, dict):
+            error_msg = response.get("error", "خطای ناشناخته") if isinstance(response, dict) else "پاسخی دریافت نشد"
+            await update.effective_message.reply_text(f"خطا: {error_msg}", reply_markup=reply_markup_back)
+            return
+
+        if len(response) == 0:
+            await update.effective_message.reply_text("هیچ وامی یافت نشد", reply_markup=reply_markup_back)
+            return
+
+        status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+
+        for loan in response:
+            status_fa = status_map.get(loan.get("status"), loan.get("status"))
+            text = (
+                f"وام شماره {loan['id']}\n"
+                f"کاربر: {loan['first_name']} {loan['last_name']}\n"
+                f"مدت: {loan['duration_months']} ماه\n"
+                f"وضعیت: {status_fa}\n"
+            )
+            if loan.get("amount"):
+                text += f"مبلغ: {loan['amount']:,} تومان\n"
+            if loan.get("rejection_reason"):
+                text += f"دلیل رد: {loan['rejection_reason']}\n"
+            text += f"تاریخ: {loan['created_at']}"
+
+            if loan.get("status") == "pending":
+                keyboard = [
+                    [
+                        InlineKeyboardButton("✅ تایید", callback_data=f"loan_approve_{loan['id']}"),
+                        InlineKeyboardButton("❌ رد کردن", callback_data=f"loan_reject_{loan['id']}"),
+                    ],
+                    [InlineKeyboardButton("📋 سابقه مشتری", callback_data=f"loan_history_{loan['id']}_{loan['user_id']}")],
+                ]
+                await update.effective_message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+            else:
+                await update.effective_message.reply_text(text)
+
+        await update.effective_message.reply_text("پایان لیست", reply_markup=reply_markup_back)
 
     async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "create_role"
