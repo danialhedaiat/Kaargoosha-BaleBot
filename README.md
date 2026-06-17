@@ -86,7 +86,13 @@ The bot talks to the FastAPI backend over RabbitMQ topic exchanges using an RPC
 (request/response) pattern, and receives admin/member notifications back through
 the `notify.*` exchange.
 
-![System Architecture](docs/diagrams/architecture_diagram.svg)
+<p align="center">
+  <a href="docs/diagrams/architecture_diagram.svg" target="_blank" title="Click to open full size, then zoom in your browser">
+    <img src="docs/diagrams/architecture_diagram.svg" alt="System Architecture" width="100%">
+  </a>
+</p>
+
+> 💡 Click any diagram to open it full size in a new tab, then use your browser zoom to inspect details.
 
 ## Diagrams
 
@@ -99,15 +105,27 @@ the `notify.*` exchange.
 
 ### Loan Flow
 
-![Loan Flow](docs/diagrams/loan_flow_diagram.svg)
+<p align="center">
+  <a href="docs/diagrams/loan_flow_diagram.svg" target="_blank" title="Click to open full size, then zoom in your browser">
+    <img src="docs/diagrams/loan_flow_diagram.svg" alt="Loan Flow" width="100%">
+  </a>
+</p>
 
 ### Deposit (Charge Wallet) Flow
 
-![Deposit Flow](docs/diagrams/deposit_flow_diagram.svg)
+<p align="center">
+  <a href="docs/diagrams/deposit_flow_diagram.svg" target="_blank" title="Click to open full size, then zoom in your browser">
+    <img src="docs/diagrams/deposit_flow_diagram.svg" alt="Deposit Flow" width="100%">
+  </a>
+</p>
 
 ### RPC Message Sequence
 
-![RPC Message Sequence](docs/diagrams/message_sequence_diagram.svg)
+<p align="center">
+  <a href="docs/diagrams/message_sequence_diagram.svg" target="_blank" title="Click to open full size, then zoom in your browser">
+    <img src="docs/diagrams/message_sequence_diagram.svg" alt="RPC Message Sequence" width="100%">
+  </a>
+</p>
 
 ## Documentation
 
