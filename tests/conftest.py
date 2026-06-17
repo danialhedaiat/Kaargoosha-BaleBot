@@ -157,6 +157,20 @@ def make_contact(phone_number: str = TEST_PHONE, update_id: int = 4) -> Update:
     return Update(update_id=update_id, message=msg)
 
 
+def make_photo(file_id: str = "test_file_id_photo", update_id: int = 5) -> Update:
+    """Simulate a photo message."""
+    from telegram import PhotoSize
+    photo = (PhotoSize(file_id=file_id, file_unique_id="unique_photo_1", width=100, height=100),)
+    msg = Message(
+        message_id=update_id,
+        date=_now(),
+        chat=_chat(),
+        from_user=_user(),
+        photo=photo,
+    )
+    return Update(update_id=update_id, message=msg)
+
+
 def sent_texts(bale_bot: BaleBot) -> list[str]:
     """Return all texts sent via reply_text in this test so far."""
     return [
