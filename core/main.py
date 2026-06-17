@@ -875,10 +875,13 @@ class BaleBot():
 
     async def after_deposit_create(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
         try:
-            if response and response.get("error"):
-                await update.effective_message.reply_text(f"❌ خطا: {response['error']}")
-                return
             keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
+            if response and response.get("error"):
+                await update.effective_message.reply_text(
+                    f"❌ خطا: {response['error']}",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                return
             await update.effective_message.reply_text(
                 "درخواست شارژ ثبت شد ✅ در انتظار تایید ادمین",
                 reply_markup=InlineKeyboardMarkup(keyboard)
