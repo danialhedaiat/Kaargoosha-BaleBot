@@ -767,8 +767,13 @@ class BaleBot():
 
     async def show_bank_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
         try:
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data="bank_info")]]
             if not response or response.get("error"):
-                await self.render(update, "اطلاعات بانکی ثبت نشده است")
+                await self.render(
+                    update,
+                    "اطلاعات بانکی ثبت نشده است",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
                 return
             card = response.get("card_number") or "ثبت نشده"
             iban = response.get("iban_number") or "ثبت نشده"
@@ -776,7 +781,8 @@ class BaleBot():
                 update,
                 f"اطلاعات بانکی شما:\n\n"
                 f"شماره کارت: {card}\n"
-                f"شماره شبا / IBAN: {iban}"
+                f"شماره شبا / IBAN: {iban}",
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except Exception as e:
             logger.error(traceback.format_exc())
