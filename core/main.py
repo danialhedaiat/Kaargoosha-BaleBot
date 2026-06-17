@@ -1010,7 +1010,8 @@ class BaleBot():
                 return
             if not response:
                 keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
-                await update.effective_message.reply_text(
+                await self.render(
+                    update,
                     "قسط معوقی وجود ندارد",
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
@@ -1023,7 +1024,8 @@ class BaleBot():
                 for i in response
             ]
             keyboard.append([InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")])
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "اقساط معوق شما:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
