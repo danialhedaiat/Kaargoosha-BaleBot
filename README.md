@@ -87,10 +87,10 @@ The bot talks to the FastAPI backend over RabbitMQ topic exchanges using an RPC
 the `notify.*` exchange.
 
 <p align="center">
-  <img src="docs/diagrams/architecture_diagram.svg" alt="System Architecture" width="100%">
+  <img src="docs/diagrams/architecture_diagram.png" alt="System Architecture" width="100%">
 </p>
 
-> 💡 Click any diagram to open it in a zoomable popup (GitHub's built-in image viewer). Use the **+ / −** controls or scroll to zoom in.
+> 💡 Click any diagram to open it in a zoomable popup (GitHub's built-in image viewer). Use the **+ / −** controls or scroll to zoom in. Vector source: [`docs/diagrams/`](docs/diagrams/) (`.svg`).
 
 ## Diagrams
 
@@ -104,19 +104,19 @@ the `notify.*` exchange.
 ### Loan Flow
 
 <p align="center">
-  <img src="docs/diagrams/loan_flow_diagram.svg" alt="Loan Flow" width="100%">
+  <img src="docs/diagrams/loan_flow_diagram.png" alt="Loan Flow" width="100%">
 </p>
 
 ### Deposit (Charge Wallet) Flow
 
 <p align="center">
-  <img src="docs/diagrams/deposit_flow_diagram.svg" alt="Deposit Flow" width="100%">
+  <img src="docs/diagrams/deposit_flow_diagram.png" alt="Deposit Flow" width="100%">
 </p>
 
 ### RPC Message Sequence
 
 <p align="center">
-  <img src="docs/diagrams/message_sequence_diagram.svg" alt="RPC Message Sequence" width="100%">
+  <img src="docs/diagrams/message_sequence_diagram.png" alt="RPC Message Sequence" width="100%">
 </p>
 
 ## Documentation
