@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="920" viewBox="0 0 1200 920">
+  <rect width="1200" height="920" fill="#f8f9fa"/>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="40" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Kaargoosha System Architecture</text>
+
+  <!-- Layer 1: Bale Messenger -->
+  <rect x="50" y="80" width="1100" height="120" fill="#e8f4f8" stroke="#0288d1" stroke-width="2" rx="6"/>
+  <text x="600" y="110" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#01579b">Bale Messenger (Member and Admin UI)</text>
+  <rect x="100" y="130" width="180" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="4"/>
+  <text x="190" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="12" text-anchor="middle">Member Chat</text>
+  <rect x="350" y="130" width="180" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="4"/>
+  <text x="440" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="12" text-anchor="middle">Admin Chat</text>
+  <rect x="600" y="130" width="180" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="4"/>
+  <text x="690" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="12" text-anchor="middle">Webhooks / Polling</text>
+  <rect x="850" y="130" width="180" height="50" fill="#ffffff" stroke="#0288d1" stroke-width="1" rx="4"/>
+  <text x="940" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="12" text-anchor="middle">HTTP API Calls</text>
+
+  <path d="M 600 200 L 600 240" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 2: BaleBot Application -->
+  <rect x="50" y="240" width="1100" height="150" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="6"/>
+  <text x="600" y="270" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#4a148c">BaleBot Python Application</text>
+  <rect x="100" y="285" width="200" height="85" fill="#ffffff" stroke="#7b1fa2" stroke-width="1" rx="4"/>
+  <text x="200" y="308" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Handlers</text>
+  <text x="200" y="328" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">Commands</text>
+  <text x="200" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">Callbacks</text>
+  <text x="200" y="362" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">Message listeners</text>
+  <rect x="340" y="285" width="200" height="85" fill="#ffffff" stroke="#7b1fa2" stroke-width="1" rx="4"/>
+  <text x="440" y="308" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Publisher</text>
+  <text x="440" y="328" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">RPC client</text>
+  <text x="440" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">Request / Response</text>
+  <text x="440" y="362" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">correlation_id match</text>
+  <rect x="580" y="285" width="200" height="85" fill="#ffffff" stroke="#7b1fa2" stroke-width="1" rx="4"/>
+  <text x="680" y="308" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Consumer</text>
+  <text x="680" y="328" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">Notification listener</text>
+  <text x="680" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">notify.* exchange</text>
+  <text x="680" y="362" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">background thread</text>
+  <rect x="820" y="285" width="200" height="85" fill="#ffffff" stroke="#7b1fa2" stroke-width="1" rx="4"/>
+  <text x="920" y="308" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">State Machine</text>
+  <text x="920" y="328" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">context.user_data</text>
+  <text x="920" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">flow flags</text>
+  <text x="920" y="362" font-family="Segoe UI, Arial, sans-serif" font-size="10" text-anchor="middle">per-user context</text>
+
+  <path d="M 600 390 L 600 430" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="640" y="418" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#555">RPC over RabbitMQ topic exchanges</text>
+
+  <!-- Layer 3: RabbitMQ -->
+  <rect x="50" y="430" width="1100" height="135" fill="#fff3e0" stroke="#e65100" stroke-width="2" rx="6"/>
+  <text x="600" y="460" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#bf360c">RabbitMQ Message Broker (Topic Exchanges)</text>
+  <rect x="80" y="478" width="140" height="68" fill="#ffffff" stroke="#e65100" stroke-width="1" rx="4"/>
+  <text x="150" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">user</text>
+  <text x="150" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">auth, lookup</text>
+  <text x="150" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">permission</text>
+  <rect x="245" y="478" width="140" height="68" fill="#ffffff" stroke="#e65100" stroke-width="1" rx="4"/>
+  <text x="315" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">loan</text>
+  <text x="315" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">create, approve</text>
+  <text x="315" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">reject, history</text>
+  <rect x="410" y="478" width="140" height="68" fill="#ffffff" stroke="#e65100" stroke-width="1" rx="4"/>
+  <text x="480" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">account</text>
+  <text x="480" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">balance, threshold</text>
+  <text x="480" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">deposit, bank_info</text>
+  <rect x="575" y="478" width="140" height="68" fill="#ffffff" stroke="#e65100" stroke-width="1" rx="4"/>
+  <text x="645" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">installment_payment</text>
+  <text x="645" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">get_pending, create</text>
+  <text x="645" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">approve, reject</text>
+  <rect x="740" y="478" width="140" height="68" fill="#ffffff" stroke="#e65100" stroke-width="1" rx="4"/>
+  <text x="810" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">role / permission</text>
+  <text x="810" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">assign, revoke</text>
+  <text x="810" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">get_all, create</text>
+  <rect x="905" y="478" width="140" height="68" fill="#ffe0b2" stroke="#e65100" stroke-width="1.5" rx="4"/>
+  <text x="975" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">notify</text>
+  <text x="975" y="517" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">loan / deposit</text>
+  <text x="975" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">installment events</text>
+
+  <path d="M 600 565 L 600 605" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 4: FastAPI Backend -->
+  <rect x="50" y="605" width="1100" height="135" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" rx="6"/>
+  <text x="600" y="635" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1b5e20">FastAPI Backend Services</text>
+  <rect x="90" y="653" width="150" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="165" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">LoanService</text>
+  <text x="165" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">create, approve</text>
+  <text x="165" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">reject, get_loans</text>
+  <rect x="260" y="653" width="150" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="335" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">DepositService</text>
+  <text x="335" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">create, approve</text>
+  <text x="335" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">reject</text>
+  <rect x="430" y="653" width="150" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="505" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">AccountService</text>
+  <text x="505" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">credit, debit</text>
+  <text x="505" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">threshold</text>
+  <rect x="600" y="653" width="170" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="685" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">InstallmentPaymentService</text>
+  <text x="685" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">get_pending, create</text>
+  <text x="685" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">approve, reject</text>
+  <rect x="790" y="653" width="150" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="865" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">BankInfoService</text>
+  <text x="865" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">get, save</text>
+  <text x="865" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">card, IBAN</text>
+  <rect x="960" y="653" width="150" height="68" fill="#ffffff" stroke="#2e7d32" stroke-width="1" rx="4"/>
+  <text x="1035" y="675" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">User / RoleService</text>
+  <text x="1035" y="692" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">create, assign</text>
+  <text x="1035" y="706" font-family="Segoe UI, Arial, sans-serif" font-size="9" text-anchor="middle">permissions</text>
+
+  <path d="M 600 740 L 600 780" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="640" y="768" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#555">SQLAlchemy ORM</text>
+
+  <!-- Layer 5: Database -->
+  <rect x="50" y="780" width="1100" height="110" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="6"/>
+  <text x="600" y="808" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#880e4f">Database (SQLite / PostgreSQL)</text>
+  <text x="120" y="835" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">users</text>
+  <text x="120" y="853" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">accounts</text>
+  <text x="120" y="871" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">transactions</text>
+  <text x="300" y="835" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">loans</text>
+  <text x="300" y="853" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">installments</text>
+  <text x="300" y="871" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">fund_pool</text>
+  <text x="480" y="835" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">deposit_requests</text>
+  <text x="480" y="853" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">user_bank_info</text>
+  <text x="480" y="871" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">account_settings</text>
+  <text x="700" y="835" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">roles</text>
+  <text x="700" y="853" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">permissions</text>
+  <text x="700" y="871" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">user_role</text>
+  <text x="900" y="835" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">installment_payment_requests</text>
+  <text x="900" y="853" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">user_social_media_id</text>
+  <text x="900" y="871" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#333">role_permission</text>
+
+  <!-- Side label: notifications path -->
+  <text x="1090" y="420" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#bf360c" text-anchor="end">notify.* travels back up to the Consumer</text>
+</svg>

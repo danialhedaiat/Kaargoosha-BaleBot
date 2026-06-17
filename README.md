@@ -82,26 +82,36 @@ pytest tests/
 
 ## Architecture
 
-```
-Bale Messenger Bot
-       ↓
-   Publisher (RPC)
-       ↓ (request/response via RabbitMQ)
-       ↑ (notification listener)
-       ↓
-RabbitMQ (topic exchanges)
-       ↓
-FastAPI Backend
-       ↓
-Database (SQLite/PostgreSQL)
-```
+The bot talks to the FastAPI backend over RabbitMQ topic exchanges using an RPC
+(request/response) pattern, and receives admin/member notifications back through
+the `notify.*` exchange.
+
+![System Architecture](docs/diagrams/architecture_diagram.svg)
+
+## Diagrams
+
+| Diagram | Description |
+| --- | --- |
+| [System Architecture](docs/diagrams/architecture_diagram.svg) | The five layers: Bale Messenger → BaleBot app → RabbitMQ → FastAPI services → Database |
+| [Loan Flow](docs/diagrams/loan_flow_diagram.svg) | Member loan request, admin approval, and disbursement |
+| [Deposit Flow](docs/diagrams/deposit_flow_diagram.svg) | Wallet charge: amount input, photo/text proof, admin approval |
+| [RPC Message Sequence](docs/diagrams/message_sequence_diagram.svg) | Step-by-step request/response across Publisher → RabbitMQ → Consumer → Database |
+
+### Loan Flow
+
+![Loan Flow](docs/diagrams/loan_flow_diagram.svg)
+
+### Deposit (Charge Wallet) Flow
+
+![Deposit Flow](docs/diagrams/deposit_flow_diagram.svg)
+
+### RPC Message Sequence
+
+![RPC Message Sequence](docs/diagrams/message_sequence_diagram.svg)
 
 ## Documentation
 
-- 📖 [`docs/USER_FLOWS.md`](docs/USER_FLOWS.md) — Complete member and admin workflows with diagrams
-- 🏗️ [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System design, message routing, state machine
-- ⚙️ [`docs/SETUP.md`](docs/SETUP.md) — Deployment, configuration, environment variables
-- 📋 [`docs/HANDLERS.md`](docs/HANDLERS.md) — Handler reference and callback patterns
+- 🖼️ [`docs/diagrams/`](docs/diagrams/) — Architecture and flow diagrams (SVG)
 
 ## Project Structure
 
@@ -122,10 +132,11 @@ tests/
 └── test_installment_payment.py
 
 docs/
-├── USER_FLOWS.md
-├── ARCHITECTURE.md
-├── SETUP.md
-└── HANDLERS.md
+└── diagrams/
+    ├── architecture_diagram.svg
+    ├── loan_flow_diagram.svg
+    ├── deposit_flow_diagram.svg
+    └── message_sequence_diagram.svg
 ```
 
 ## Key Concepts
