@@ -160,6 +160,22 @@ class BotPublisher:
         response = self.publish(exchange="deposit", routing_key="deposit.reject", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def get_pending_installments(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="installment_payment", routing_key="installment_payment.get_pending", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def create_installment_payment(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="installment_payment", routing_key="installment_payment.create", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def approve_installment_payment(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="installment_payment", routing_key="installment_payment.approve", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def reject_installment_payment(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="installment_payment", routing_key="installment_payment.reject", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def create_role(self, body, callback, callback_kwargs):
         response = self.publish(exchange="role", routing_key="role.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

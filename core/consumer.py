@@ -68,5 +68,11 @@ class BotConsumer:
                     self.loop,
                 )
 
+            elif method.routing_key == "notify.installment_payment_request":
+                asyncio.run_coroutine_threadsafe(
+                    self.app.handle_notify_installment_payment_request(data),
+                    self.loop,
+                )
+
         except Exception:
             logger.error(traceback.format_exc())
