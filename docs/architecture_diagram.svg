@@ -1,0 +1,178 @@
+<svg width="1200" height="900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="900" fill="#f8f9fa"/>
+
+  <!-- Title -->
+  <text x="600" y="30" font-size="28" font-weight="bold" text-anchor="middle" fill="#1a1a1a">
+    Kaargoosha System Architecture
+  </text>
+
+  <!-- Layer 1: Bale Messenger -->
+  <rect x="50" y="80" width="1100" height="120" fill="#e8f4f8" stroke="#0288d1" stroke-width="2" rx="5"/>
+  <text x="600" y="110" font-size="16" font-weight="bold" text-anchor="middle" fill="#01579b">
+    Bale Messenger (Member & Admin UI)
+  </text>
+  <rect x="100" y="130" width="180" height="50" fill="#fff" stroke="#0288d1" stroke-width="1" rx="3"/>
+  <text x="190" y="165" font-size="12" text-anchor="middle">Member Chat</text>
+
+  <rect x="350" y="130" width="180" height="50" fill="#fff" stroke="#0288d1" stroke-width="1" rx="3"/>
+  <text x="440" y="165" font-size="12" text-anchor="middle">Admin Chat</text>
+
+  <rect x="600" y="130" width="180" height="50" fill="#fff" stroke="#0288d1" stroke-width="1" rx="3"/>
+  <text x="690" y="165" font-size="12" text-anchor="middle">Webhooks/Polling</text>
+
+  <rect x="850" y="130" width="180" height="50" fill="#fff" stroke="#0288d1" stroke-width="1" rx="3"/>
+  <text x="940" y="165" font-size="12" text-anchor="middle">HTTP API Calls</text>
+
+  <!-- Arrow down -->
+  <path d="M 600 200 L 600 240" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 2: BaleBot Application -->
+  <rect x="50" y="240" width="1100" height="150" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="5"/>
+  <text x="600" y="270" font-size="16" font-weight="bold" text-anchor="middle" fill="#4a148c">
+    BaleBot Python Application
+  </text>
+
+  <rect x="100" y="285" width="160" height="80" fill="#fff" stroke="#7b1fa2" stroke-width="1" rx="3"/>
+  <text x="180" y="310" font-size="11" font-weight="bold" text-anchor="middle">Handlers</text>
+  <text x="180" y="330" font-size="9" text-anchor="middle">Commands</text>
+  <text x="180" y="345" font-size="9" text-anchor="middle">Callbacks</text>
+  <text x="180" y="360" font-size="9" text-anchor="middle">Messages</text>
+
+  <rect x="330" y="285" width="160" height="80" fill="#fff" stroke="#7b1fa2" stroke-width="1" rx="3"/>
+  <text x="410" y="310" font-size="11" font-weight="bold" text-anchor="middle">Publisher</text>
+  <text x="410" y="330" font-size="9" text-anchor="middle">(RPC Client)</text>
+  <text x="410" y="345" font-size="9" text-anchor="middle">Request/Response</text>
+  <text x="410" y="360" font-size="9" text-anchor="middle">RabbitMQ</text>
+
+  <rect x="560" y="285" width="160" height="80" fill="#fff" stroke="#7b1fa2" stroke-width="1" rx="3"/>
+  <text x="640" y="310" font-size="11" font-weight="bold" text-anchor="middle">Consumer</text>
+  <text x="640" y="330" font-size="9" text-anchor="middle">(Listener)</text>
+  <text x="640" y="345" font-size="9" text-anchor="middle">Notifications</text>
+  <text x="640" y="360" font-size="9" text-anchor="middle">RabbitMQ</text>
+
+  <rect x="790" y="285" width="160" height="80" fill="#fff" stroke="#7b1fa2" stroke-width="1" rx="3"/>
+  <text x="870" y="310" font-size="11" font-weight="bold" text-anchor="middle">State Machine</text>
+  <text x="870" y="330" font-size="9" text-anchor="middle">user_data</text>
+  <text x="870" y="345" font-size="9" text-anchor="middle">Flags</text>
+  <text x="870" y="360" font-size="9" text-anchor="middle">Context</text>
+
+  <!-- Arrow down -->
+  <path d="M 600 390 L 600 430" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 3: RabbitMQ -->
+  <rect x="50" y="430" width="1100" height="130" fill="#fff3e0" stroke="#e65100" stroke-width="2" rx="5"/>
+  <text x="600" y="460" font-size="16" font-weight="bold" text-anchor="middle" fill="#bf360c">
+    RabbitMQ Message Broker (Topic Exchanges)
+  </text>
+
+  <rect x="80" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="150" y="495" font-size="10" font-weight="bold" text-anchor="middle">user</text>
+  <text x="150" y="510" font-size="8" text-anchor="middle">auth, lookup</text>
+  <text x="150" y="523" font-size="8" text-anchor="middle">permission</text>
+
+  <rect x="245" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="315" y="495" font-size="10" font-weight="bold" text-anchor="middle">loan</text>
+  <text x="315" y="510" font-size="8" text-anchor="middle">create, approve</text>
+  <text x="315" y="523" font-size="8" text-anchor="middle">reject, history</text>
+
+  <rect x="410" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="480" y="495" font-size="10" font-weight="bold" text-anchor="middle">account</text>
+  <text x="480" y="510" font-size="8" text-anchor="middle">balance, debit</text>
+  <text x="480" y="523" font-size="8" text-anchor="middle">credit, threshold</text>
+
+  <rect x="575" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="645" y="495" font-size="10" font-weight="bold" text-anchor="middle">deposit</text>
+  <text x="645" y="510" font-size="8" text-anchor="middle">create, approve</text>
+  <text x="645" y="523" font-size="8" text-anchor="middle">reject</text>
+
+  <rect x="740" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="810" y="495" font-size="10" font-weight="bold" text-anchor="middle">notify</text>
+  <text x="810" y="510" font-size="8" text-anchor="middle">loan_approved</text>
+  <text x="810" y="523" font-size="8" text-anchor="middle">deposit_request</text>
+
+  <rect x="905" y="475" width="140" height="65" fill="#fff" stroke="#e65100" stroke-width="1" rx="3"/>
+  <text x="975" y="495" font-size="10" font-weight="bold" text-anchor="middle">bank_info</text>
+  <text x="975" y="510" font-size="8" text-anchor="middle">get, save</text>
+  <text x="975" y="523" font-size="8" text-anchor="middle">card, IBAN</text>
+
+  <!-- Arrow down -->
+  <path d="M 600 560 L 600 600" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 4: FastAPI Backend -->
+  <rect x="50" y="600" width="1100" height="130" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" rx="5"/>
+  <text x="600" y="630" font-size="16" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+    FastAPI Backend Services
+  </text>
+
+  <rect x="100" y="645" width="130" height="65" fill="#fff" stroke="#2e7d32" stroke-width="1" rx="3"/>
+  <text x="165" y="665" font-size="10" font-weight="bold" text-anchor="middle">LoanService</text>
+  <text x="165" y="680" font-size="8" text-anchor="middle">create, approve</text>
+  <text x="165" y="693" font-size="8" text-anchor="middle">reject</text>
+
+  <rect x="270" y="645" width="130" height="65" fill="#fff" stroke="#2e7d32" stroke-width="1" rx="3"/>
+  <text x="335" y="665" font-size="10" font-weight="bold" text-anchor="middle">DepositService</text>
+  <text x="335" y="680" font-size="8" text-anchor="middle">create, approve</text>
+  <text x="335" y="693" font-size="8" text-anchor="middle">reject</text>
+
+  <rect x="440" y="645" width="130" height="65" fill="#fff" stroke="#2e7d32" stroke-width="1" rx="3"/>
+  <text x="505" y="665" font-size="10" font-weight="bold" text-anchor="middle">AccountService</text>
+  <text x="505" y="680" font-size="8" text-anchor="middle">credit, debit</text>
+  <text x="505" y="693" font-size="8" text-anchor="middle">threshold</text>
+
+  <rect x="610" y="645" width="130" height="65" fill="#fff" stroke="#2e7d32" stroke-width="1" rx="3"/>
+  <text x="675" y="665" font-size="10" font-weight="bold" text-anchor="middle">InstallmentService</text>
+  <text x="675" y="680" font-size="8" text-anchor="middle">create, approve</text>
+  <text x="675" y="693" font-size="8" text-anchor="middle">reject, pending</text>
+
+  <rect x="780" y="645" width="130" height="65" fill="#fff" stroke="#2e7d32" stroke-width="1" rx="3"/>
+  <text x="845" y="665" font-size="10" font-weight="bold" text-anchor="middle">BankInfoService</text>
+  <text x="845" y="680" font-size="8" text-anchor="middle">get, save</text>
+  <text x="845" y="693" font-size="8" text-anchor="middle">card, IBAN</text>
+
+  <!-- Arrow down -->
+  <path d="M 600 710 L 600 750" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Layer 5: Database -->
+  <rect x="50" y="750" width="1100" height="120" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="5"/>
+  <text x="600" y="780" font-size="16" font-weight="bold" text-anchor="middle" fill="#880e4f">
+    Database (SQLite / PostgreSQL)
+  </text>
+
+  <text x="100" y="810" font-size="11" fill="#333">users</text>
+  <text x="100" y="830" font-size="11" fill="#333">accounts</text>
+  <text x="100" y="850" font-size="11" fill="#333">transactions</text>
+
+  <text x="250" y="810" font-size="11" fill="#333">loans</text>
+  <text x="250" y="830" font-size="11" fill="#333">installments</text>
+  <text x="250" y="850" font-size="11" fill="#333">fund_pool</text>
+
+  <text x="400" y="810" font-size="11" fill="#333">deposit_requests</text>
+  <text x="400" y="830" font-size="11" fill="#333">user_bank_info</text>
+  <text x="400" y="850" font-size="11" fill="#333">account_settings</text>
+
+  <text x="600" y="810" font-size="11" fill="#333">roles</text>
+  <text x="600" y="830" font-size="11" fill="#333">permissions</text>
+  <text x="600" y="850" font-size="11" fill="#333">user_roles</text>
+
+  <text x="800" y="810" font-size="11" fill="#333">installment_payment_requests</text>
+  <text x="800" y="830" font-size="11" fill="#333">user_social_media_id</text>
+  <text x="800" y="850" font-size="11" fill="#333">role_permissions</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <rect x="50" y="870" width="300" height="25" fill="#f0f0f0" stroke="#999" stroke-width="1" rx="3"/>
+  <text x="60" y="888" font-size="10" fill="#333">→ Synchronous RPC (Request/Response)</text>
+
+  <rect x="400" y="870" width="300" height="25" fill="#f0f0f0" stroke="#999" stroke-width="1" rx="3"/>
+  <text x="410" y="888" font-size="10" fill="#333">⇐⇒ Asynchronous Pub/Sub (Notifications)</text>
+
+  <rect x="750" y="870" width="300" height="25" fill="#f0f0f0" stroke="#999" stroke-width="1" rx="3"/>
+  <text x="760" y="888" font-size="10" fill="#333">◆ Database (SQLAlchemy ORM)</text>
+</svg>
