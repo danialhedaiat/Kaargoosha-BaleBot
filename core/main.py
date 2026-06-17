@@ -624,7 +624,6 @@ class BaleBot():
 
     async def check_admin_menu_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
-            await update.effective_message.reply_text("درحال چک کردن دسترسی شما...")
             response = self.publisher.check_admin_menu_permission(context.user_data)
             await self.admin_menu(update, context, response)
         except Exception as e:
@@ -632,7 +631,7 @@ class BaleBot():
             logger.error(e)
 
     async def admin_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
-        if response.get("status") == True:
+        if response and response.get("status") == True:
             context.user_data["flow"] = "admin_menu"
             keyboard = [
                 [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
@@ -642,11 +641,16 @@ class BaleBot():
             reply_markup = InlineKeyboardMarkup(keyboard)
             await self.render(update, "پلن ادمین", reply_markup=reply_markup)
         else:
+            await update.effective_message.reply_text("شما به این منو دسترسی ندارید")
             keyboard = [
+                [InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")],
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await self.render(update, "شما به این منو دسترسی ندارید", reply_markup=reply_markup)
+            await update.effective_message.reply_text(
+                "لطفا یکی از منو های زیر را انتخاب کنید",
+                reply_markup=reply_markup
+            )
 
     async def role_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
