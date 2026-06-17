@@ -822,10 +822,17 @@ class BaleBot():
 
     async def bank_info_saved(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
         try:
+            keyboard = [[InlineKeyboardButton("بازگشت", callback_data="bank_info")]]
             if response and response.get("error"):
-                await update.effective_message.reply_text(f"خطا: {response['error']}")
+                await update.effective_message.reply_text(
+                    f"خطا: {response['error']}",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
             else:
-                await update.effective_message.reply_text("اطلاعات بانکی شما ذخیره شد ✅")
+                await update.effective_message.reply_text(
+                    "اطلاعات بانکی شما ذخیره شد ✅",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
