@@ -513,12 +513,12 @@ class BaleBot():
                         )
                         return
                 elif field == "iban_number":
-                    if not re.fullmatch(r"IR\d{24}", value, re.IGNORECASE):
+                    if not re.fullmatch(r"\d{24}", value):
                         await update.effective_message.reply_text(
-                            "شماره شبا / IBAN باید با IR شروع شود و ۲۶ کاراکتر باشد. لطفا دوباره وارد کنید:"
+                            "شماره شبا باید ۲۴ رقم باشد (بدون IR). لطفا دوباره وارد کنید:"
                         )
                         return
-                    value = value.upper()
+                    value = "IR" + value
 
                 context.user_data["bank_info_flag"] = None
                 body = {
@@ -815,7 +815,7 @@ class BaleBot():
     async def bank_info_ask_iban(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             context.user_data["bank_info_flag"] = "iban_number"
-            await update.effective_message.reply_text("شماره شبا / IBAN خود را وارد کنید (مثال: IR...):")
+            await update.effective_message.reply_text("۲۴ رقم شماره شبا را بدون IR وارد کنید:")
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)

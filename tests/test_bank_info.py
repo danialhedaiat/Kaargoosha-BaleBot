@@ -150,31 +150,16 @@ class TestBankInfoUpdateIban:
         )
 
     async def test_valid_iban_saves_successfully(self, bot):
-        """A valid IR + 24-digit IBAN is saved and the bot confirms."""
+        """24 digits (without the IR prefix) are saved and the bot confirms."""
         bot.mock_reply.reset_mock()
         await _sign_in(bot, base_id=790)
         await process(bot, make_callback("personal_menu", update_id=793))
         await process(bot, make_callback("bank_info", update_id=794))
         await process(bot, make_callback("bank_info_update", update_id=795))
         await process(bot, make_callback("bank_info_update_iban", update_id=796))
-        await process(bot, make_text("IR062170000000109202965164", update_id=797), wait=1.5)
+        await process(bot, make_text("062170000000109202965164", update_id=797), wait=1.5)
 
         texts = sent_texts(bot)
         assert any("ذخیره شد" in t for t in texts), (
             f"Expected save confirmation, got: {texts}"
-        )
-
-    async def test_lowercase_iban_is_accepted(self, bot):
-        """Lowercase 'ir' prefix is auto-uppercased and saved successfully."""
-        bot.mock_reply.reset_mock()
-        await _sign_in(bot, base_id=800)
-        await process(bot, make_callback("personal_menu", update_id=803))
-        await process(bot, make_callback("bank_info", update_id=804))
-        await process(bot, make_callback("bank_info_update", update_id=805))
-        await process(bot, make_callback("bank_info_update_iban", update_id=806))
-        await process(bot, make_text("ir062170000000109202965164", update_id=807), wait=1.5)
-
-        texts = sent_texts(bot)
-        assert any("ذخیره شد" in t for t in texts), (
-            f"Expected save confirmation for lowercase 'ir' IBAN, got: {texts}"
         )
