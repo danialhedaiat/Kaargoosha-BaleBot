@@ -36,6 +36,7 @@ class BaleBot():
     def add_handler(self):
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("join", self.join_command))
+        self.app.add_handler(CommandHandler("cancel", self.cancel_command))
 
         self.app.add_handler(CallbackQueryHandler(self.sign_in_command, pattern="^sign_in$"))
         self.app.add_handler(CallbackQueryHandler(self.sign_up_command, pattern="^sign_up$"))
@@ -181,6 +182,25 @@ class BaleBot():
         else:
             logger.error(traceback.format_exc())
             logger.error(context.error)
+
+    async def cancel_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            for flag in (
+                "flow", "phone_number_create_user_flag", "phone_number_join_user_flag",
+                "firstname_flag", "lastname_flag", "role_name_flag", "assign_role_flag",
+                "user_role_list_flag", "delete_user_role_flag", "loan_flow",
+                "loan_amount", "loan_duration", "loan_approve_flag", "loan_reject_flag",
+                "bank_info_flag", "deposit_flag", "deposit_amount", "deposit_reject_flag",
+                "installment_payment_proof_flag", "installment_payment_reject_flag",
+            ):
+                context.user_data[flag] = None
+            keyboard = [[InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")]]
+            await update.effective_message.reply_text(
+                "عملیات لغو شد", reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
     async def sign_in_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "sign_in"
