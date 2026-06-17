@@ -20,6 +20,23 @@ from core.settings import logger, settings
 load_dotenv()
 
 
+# Maps known backend (FastAPI) error strings to user-friendly Persian messages.
+BACKEND_ERROR_FA = {
+    "User already has an active or pending loan": "شما در حال حاضر یک وام فعال یا در انتظار دارید.",
+    "insufficient_balance": "موجودی کیف پول شما برای دریافت وام کافی نیست.",
+    "Insufficient fund pool balance": "موجودی صندوق برای پرداخت این وام کافی نیست.",
+}
+
+GENERIC_ERROR_FA = "خطایی رخ داد. لطفا دوباره تلاش کنید."
+
+
+def translate_backend_error(error):
+    """Return a Persian message for a backend error string, falling back to a generic one."""
+    if not error:
+        return GENERIC_ERROR_FA
+    return BACKEND_ERROR_FA.get(error, GENERIC_ERROR_FA)
+
+
 class BaleBot():
     def __init__(self):
         logger.info("Init Bale Bot")
@@ -1216,7 +1233,7 @@ class BaleBot():
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if not response or "error" in response:
-            error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+            error_msg = translate_backend_error(response.get("error") if response else None)
             await self.render(
                 update,
                 f"متاسفانه درخواست ثبت نشد:\n{error_msg}",
