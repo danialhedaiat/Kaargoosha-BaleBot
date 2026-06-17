@@ -63,6 +63,11 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.selected_assign_role,
                                                   pattern=r"^select_assign_role_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
+        self.app.add_handler(CallbackQueryHandler(self.bank_info, pattern="^bank_info$"))
+        self.app.add_handler(CallbackQueryHandler(self.bank_info_view, pattern="^bank_info_view$"))
+        self.app.add_handler(CallbackQueryHandler(self.bank_info_update_menu, pattern="^bank_info_update$"))
+        self.app.add_handler(CallbackQueryHandler(self.bank_info_ask_card, pattern="^bank_info_update_card$"))
+        self.app.add_handler(CallbackQueryHandler(self.bank_info_ask_iban, pattern="^bank_info_update_iban$"))
         self.app.add_handler(CallbackQueryHandler(self.apply_for_loan, pattern="^apply_for_loan$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_duration_selected, pattern=r"^loan_duration_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.loan_confirm, pattern="^loan_confirm$"))
@@ -114,6 +119,7 @@ class BaleBot():
             context.user_data["loan_duration"] = None
             context.user_data["loan_approve_flag"] = None
             context.user_data["loan_reject_flag"] = None
+            context.user_data["bank_info_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -365,6 +371,36 @@ class BaleBot():
                     callback_kwargs={"update": update, "context": context},
                 )
 
+            elif context.user_data.get("bank_info_flag"):
+                field = context.user_data["bank_info_flag"]
+                value = update.message.text.strip()
+
+                if field == "card_number":
+                    if not re.fullmatch(r"\d{16}", value):
+                        await update.effective_message.reply_text(
+                            "شماره کارت باید ۱۶ رقم باشد. لطفا دوباره وارد کنید:"
+                        )
+                        return
+                elif field == "iban_number":
+                    if not re.fullmatch(r"IR\d{24}", value, re.IGNORECASE):
+                        await update.effective_message.reply_text(
+                            "شماره شبا / IBAN باید با IR شروع شود و ۲۶ کاراکتر باشد. لطفا دوباره وارد کنید:"
+                        )
+                        return
+                    value = value.upper()
+
+                context.user_data["bank_info_flag"] = None
+                body = {
+                    "user_id": context.user_data["user_id"],
+                    "field": field,
+                    "value": value,
+                }
+                self.publisher.save_bank_info(
+                    body=body,
+                    callback=self.bank_info_saved,
+                    callback_kwargs={"update": update, "context": context},
+                )
+
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -531,6 +567,7 @@ class BaleBot():
             keyboard = []
             if has_loan_permission:
                 keyboard.append([InlineKeyboardButton("درخواست وام", callback_data="apply_for_loan")])
+            keyboard.append([InlineKeyboardButton("اطلاعات بانکی", callback_data="bank_info")])
             keyboard.append([InlineKeyboardButton("بازگشت", callback_data="sign_in")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -561,6 +598,90 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+
+    async def bank_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            keyboard = [
+                [InlineKeyboardButton("مشاهده اطلاعات بانکی", callback_data="bank_info_view")],
+                [InlineKeyboardButton("ویرایش اطلاعات بانکی", callback_data="bank_info_update")],
+                [InlineKeyboardButton("بازگشت", callback_data="personal_menu")],
+            ]
+            await update.effective_message.reply_text(
+                "اطلاعات بانکی",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def bank_info_view(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            body = {"user_id": context.user_data["user_id"]}
+            self.publisher.get_bank_info(
+                body=body,
+                callback=self.show_bank_info,
+                callback_kwargs={"update": update, "context": context},
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def show_bank_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
+        try:
+            if not response or response.get("error"):
+                await update.effective_message.reply_text("اطلاعات بانکی ثبت نشده است")
+                return
+            card = response.get("card_number") or "ثبت نشده"
+            iban = response.get("iban_number") or "ثبت نشده"
+            await update.effective_message.reply_text(
+                f"اطلاعات بانکی شما:\n\n"
+                f"شماره کارت: {card}\n"
+                f"شماره شبا / IBAN: {iban}"
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def bank_info_update_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            keyboard = [
+                [InlineKeyboardButton("شماره کارت", callback_data="bank_info_update_card")],
+                [InlineKeyboardButton("شماره شبا / IBAN", callback_data="bank_info_update_iban")],
+                [InlineKeyboardButton("بازگشت", callback_data="bank_info")],
+            ]
+            await update.effective_message.reply_text(
+                "کدام اطلاعات را می‌خواهید ویرایش کنید؟",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def bank_info_ask_card(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["bank_info_flag"] = "card_number"
+            await update.effective_message.reply_text("شماره کارت ۱۶ رقمی خود را وارد کنید:")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def bank_info_ask_iban(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            context.user_data["bank_info_flag"] = "iban_number"
+            await update.effective_message.reply_text("شماره شبا / IBAN خود را وارد کنید (مثال: IR...):")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def bank_info_saved(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
+        try:
+            if response and response.get("error"):
+                await update.effective_message.reply_text(f"خطا: {response['error']}")
+            else:
+                await update.effective_message.reply_text("اطلاعات بانکی شما ذخیره شد ✅")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
     async def loan_duration_selected(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
