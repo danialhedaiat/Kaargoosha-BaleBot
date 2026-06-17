@@ -15,7 +15,10 @@ async def _sign_in(bot, base_id: int = 0):
 def _all_button_datas(bale_bot) -> set:
     """Collect every callback_data from all inline keyboard buttons sent so far."""
     datas = set()
-    for c in bale_bot.mock_reply.call_args_list:
+    calls = list(bale_bot.mock_reply.call_args_list)
+    if hasattr(bale_bot, "mock_edit"):
+        calls += list(bale_bot.mock_edit.call_args_list)
+    for c in calls:
         markup = c.kwargs.get("reply_markup")
         if markup and hasattr(markup, "inline_keyboard"):
             for row in markup.inline_keyboard:

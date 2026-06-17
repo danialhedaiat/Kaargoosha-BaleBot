@@ -48,8 +48,12 @@ async def bot():
     # Patch Message.reply_text and CallbackQuery.answer at class level so
     # tests don't need bot injection on manually constructed objects.
     with patch.object(Message, "reply_text", new_callable=AsyncMock) as mock_reply, \
+         patch.object(CallbackQuery, "edit_message_text", new_callable=AsyncMock) as mock_edit, \
          patch.object(CallbackQuery, "answer", new_callable=AsyncMock):
         bale_bot.mock_reply = mock_reply
+        # Menu navigation now edits the message in place instead of sending a new
+        # one (KAA-55), so tests must look at edit_message_text calls too.
+        bale_bot.mock_edit = mock_edit
 
         async with bale_bot.app:
             yield bale_bot
@@ -171,9 +175,33 @@ def make_photo(file_id: str = "test_file_id_photo", update_id: int = 5) -> Updat
     return Update(update_id=update_id, message=msg)
 
 
+def _message_calls(bale_bot: BaleBot) -> list:
+    """All reply_text + edit_message_text calls recorded so far.
+
+    Navigation handlers edit the existing message (KAA-55), so both mocks must be
+    inspected to see everything the bot rendered.
+    """
+    calls = list(bale_bot.mock_reply.call_args_list)
+    if hasattr(bale_bot, "mock_edit"):
+        calls += list(bale_bot.mock_edit.call_args_list)
+    return calls
+
+
 def sent_texts(bale_bot: BaleBot) -> list[str]:
-    """Return all texts sent via reply_text in this test so far."""
+    """Return all texts the bot rendered (new messages and in-place edits)."""
     return [
         c.args[0] if c.args else c.kwargs.get("text", "")
-        for c in bale_bot.mock_reply.call_args_list
+        for c in _message_calls(bale_bot)
     ]
+
+
+def all_button_datas(bale_bot: BaleBot) -> set:
+    """Collect every callback_data across all rendered messages (sent or edited)."""
+    datas = set()
+    for c in _message_calls(bale_bot):
+        markup = c.kwargs.get("reply_markup")
+        if markup and hasattr(markup, "inline_keyboard"):
+            for row in markup.inline_keyboard:
+                for btn in row:
+                    datas.add(btn.callback_data)
+    return datas

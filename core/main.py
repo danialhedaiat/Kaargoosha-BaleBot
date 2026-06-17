@@ -5,6 +5,7 @@ import traceback
 
 from telegram import BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, \
     ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.error import BadRequest
 
 import os
 
@@ -109,6 +110,28 @@ class BaleBot():
         finally:
             loop.close()
 
+    async def render(self, update: Update, text: str, reply_markup=None):
+        """Render a menu/result in place.
+
+        When the update came from an inline-button tap, edit the existing message
+        so navigation reuses a single message instead of stacking new ones. When
+        it came from anything else (a user message, a command), send a new
+        message. Falls back to sending if the message can no longer be edited
+        (e.g. it is too old after a bot restart, or it is a photo/caption); a
+        "not modified" edit (same button tapped twice) is a no-op.
+        """
+        query = update.callback_query
+        if query is not None:
+            try:
+                await query.edit_message_text(text, reply_markup=reply_markup)
+                return
+            except BadRequest as exc:
+                if "not modified" in str(exc).lower():
+                    return
+            except Exception:
+                logger.error(traceback.format_exc())
+        await update.effective_message.reply_text(text, reply_markup=reply_markup)
+
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             context.user_data["username"] = update.effective_user.username or str(update.effective_user.id)
@@ -140,7 +163,8 @@ class BaleBot():
             ]
 
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "به ربات کارگشا خوش امدید\nاگر قبلا در پلتفرم های دیگه ما ثبت نام کرده‌اید کافیست از منو زیر ثبت نام در بله رو انتخاب کنید",
                 reply_markup=reply_markup
             )
@@ -178,8 +202,8 @@ class BaleBot():
                 ]
 
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.effective_message.reply_text("اکانت شما یافت نشد",
-                                                          reply_markup=reply_markup)
+                await self.render(update, "اکانت شما یافت نشد",
+                                  reply_markup=reply_markup)
                 return
             context.user_data["roles"] = response["roles"]
             context.user_data["social_media"] = response["social_media"]
@@ -205,7 +229,8 @@ class BaleBot():
                 keyboard.append([InlineKeyboardButton("منوی ادمین", callback_data="admin_menu")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"{context.user_data['first_name']} عزیز به کارگشا خوش آمدی\nلطفا یکی از منو های زیر را انتخاب کن",
                 reply_markup=reply_markup)
         except Exception as e:
@@ -221,7 +246,8 @@ class BaleBot():
             ]
 
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "اگر قبلا با پلتفرم دیگری در صندوق ما ثبت نام کردید میتوانید از این پلتفرم هم با همان حساب استفاده کنید",
                 reply_markup=reply_markup
             )
@@ -614,13 +640,13 @@ class BaleBot():
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("پلن ادمین", reply_markup=reply_markup)
+            await self.render(update, "پلن ادمین", reply_markup=reply_markup)
         else:
             keyboard = [
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("شما به این منو دسترسی ندارید", reply_markup=reply_markup)
+            await self.render(update, "شما به این منو دسترسی ندارید", reply_markup=reply_markup)
 
     async def role_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -635,7 +661,7 @@ class BaleBot():
                 [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("تنظیمات رول", reply_markup=reply_markup)
+            await self.render(update, "تنظیمات رول", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -658,7 +684,7 @@ class BaleBot():
             keyboard.append([InlineKeyboardButton("بازگشت", callback_data="sign_in")])
 
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("منوی شخصی", reply_markup=reply_markup)
+            await self.render(update, "منوی شخصی", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -677,7 +703,8 @@ class BaleBot():
                 [InlineKeyboardButton("انصراف", callback_data="personal_menu")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "مدت زمان بازپرداخت وام را انتخاب کنید:",
                 reply_markup=reply_markup
             )
@@ -693,7 +720,8 @@ class BaleBot():
                 [InlineKeyboardButton("ویرایش اطلاعات بانکی", callback_data="bank_info_update")],
                 [InlineKeyboardButton("بازگشت", callback_data="personal_menu")],
             ]
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "اطلاعات بانکی",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
@@ -716,11 +744,12 @@ class BaleBot():
     async def show_bank_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
         try:
             if not response or response.get("error"):
-                await update.effective_message.reply_text("اطلاعات بانکی ثبت نشده است")
+                await self.render(update, "اطلاعات بانکی ثبت نشده است")
                 return
             card = response.get("card_number") or "ثبت نشده"
             iban = response.get("iban_number") or "ثبت نشده"
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"اطلاعات بانکی شما:\n\n"
                 f"شماره کارت: {card}\n"
                 f"شماره شبا / IBAN: {iban}"
@@ -736,7 +765,8 @@ class BaleBot():
                 [InlineKeyboardButton("شماره شبا / IBAN", callback_data="bank_info_update_iban")],
                 [InlineKeyboardButton("بازگشت", callback_data="bank_info")],
             ]
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 "کدام اطلاعات را می‌خواهید ویرایش کنید؟",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
@@ -892,10 +922,10 @@ class BaleBot():
         try:
             if response is None or "error" in response:
                 error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در تایید: {error_msg}")
+                await self.render(update, f"❌ خطا در تایید: {error_msg}")
                 return
             deposit_id = response.get("id")
-            await update.effective_message.reply_text(f"✅ درخواست شارژ شماره {deposit_id} تایید شد")
+            await self.render(update, f"✅ درخواست شارژ شماره {deposit_id} تایید شد")
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -1063,9 +1093,9 @@ class BaleBot():
         try:
             if response is None or "error" in response:
                 error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در تایید: {error_msg}")
+                await self.render(update, f"❌ خطا در تایید: {error_msg}")
                 return
-            await update.effective_message.reply_text("✅ قسط تایید شد")
+            await self.render(update, "✅ قسط تایید شد")
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -1118,14 +1148,14 @@ class BaleBot():
                 ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(summary, reply_markup=reply_markup)
+            await self.render(update, summary, reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
 
     async def loan_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         body = {
             "user_id": context.user_data["user_id"],
@@ -1145,13 +1175,15 @@ class BaleBot():
 
         if not response or "error" in response:
             error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"متاسفانه درخواست ثبت نشد:\n{error_msg}",
                 reply_markup=reply_markup
             )
             return
 
-        await update.effective_message.reply_text(
+        await self.render(
+            update,
             "درخواست شما ثبت شد و در انتظار بررسی است ✅",
             reply_markup=reply_markup
         )
@@ -1162,7 +1194,7 @@ class BaleBot():
             context.user_data["loan_duration"] = None
             keyboard = [[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("درخواست وام لغو شد.", reply_markup=reply_markup)
+            await self.render(update, "درخواست وام لغو شد.", reply_markup=reply_markup)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -1348,7 +1380,7 @@ class BaleBot():
 
     async def loans_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1360,11 +1392,11 @@ class BaleBot():
             [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("مدیریت وام ها", reply_markup=reply_markup)
+        await self.render(update, "مدیریت وام ها", reply_markup=reply_markup)
 
     async def loans_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1374,7 +1406,7 @@ class BaleBot():
 
     async def loans_pending(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1384,7 +1416,7 @@ class BaleBot():
 
     async def loans_approved(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1395,11 +1427,11 @@ class BaleBot():
             [InlineKeyboardButton("بازگشت", callback_data="loans_menu")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
+        await self.render(update, "بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
 
     async def loans_rejected(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1410,11 +1442,11 @@ class BaleBot():
             [InlineKeyboardButton("بازگشت", callback_data="loans_menu")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
+        await self.render(update, "بازه زمانی را انتخاب کنید:", reply_markup=reply_markup)
 
     async def loans_filtered(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1492,19 +1524,19 @@ class BaleBot():
 
     async def get_roles(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         body = {"requested_by": context.user_data["user_id"]}
         response = self.publisher.get_roles(body=body)
         if not response or not isinstance(response, list):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         keyboard = [
             [InlineKeyboardButton(role["name"], callback_data=f"select_role_{role['id']}")] for role in response
         ]
         keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
+        await self.render(update, "لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
 
     async def selected_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -1525,7 +1557,8 @@ class BaleBot():
             ]
 
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"منو تنظیمات رول",
                 reply_markup=reply_markup)
         except Exception as e:
@@ -1534,7 +1567,7 @@ class BaleBot():
 
     async def check_role_permissions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1550,17 +1583,17 @@ class BaleBot():
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         if not response or not isinstance(response, list):
-            await update.effective_message.reply_text("دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
+            await self.render(update, "دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
             return
 
         message = f"دسترسی هایی که برای این رول {response[0]['role']['name']} پیدا شد به این ترتیب است:\n" + "\n".join(
             permission["codename"] for permission in response
         )
-        await update.effective_message.reply_text(message, reply_markup=reply_markup)
+        await self.render(update, message, reply_markup=reply_markup)
 
     async def add_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1573,7 +1606,7 @@ class BaleBot():
         response = self.publisher.get_all_permissions(body=body)
 
         if not response or not isinstance(response, dict):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
 
         keyboard = [
@@ -1582,11 +1615,11 @@ class BaleBot():
         ]
         keyboard += [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
+        await self.render(update, "دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
 
     async def add_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1602,16 +1635,16 @@ class BaleBot():
         if response and "error" in response and response["error"].startswith("(sqlite3.IntegrityError) UNIQUE constraint"):
             keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("این دسترسی قبلا یه رول داده شده است", reply_markup=reply_markup)
+            await self.render(update, "این دسترسی قبلا یه رول داده شده است", reply_markup=reply_markup)
             return
 
         keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("دسترسی به رول داده شد", reply_markup=reply_markup)
+        await self.render(update, "دسترسی به رول داده شد", reply_markup=reply_markup)
 
     async def revoke_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1626,7 +1659,7 @@ class BaleBot():
         if not response or not isinstance(response, list):
             keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
+            await self.render(update, "دسترسی برای این رول پیدا نشد", reply_markup=reply_markup)
             return
 
         keyboard = [
@@ -1636,11 +1669,11 @@ class BaleBot():
         ]
         keyboard += [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
+        await self.render(update, "دسترسی مورد نظر را انتخاب کنید", reply_markup=reply_markup)
 
     async def revoke_selected_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1656,16 +1689,16 @@ class BaleBot():
         if not response or "error" in response:
             keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"add_role_permission_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text("این دسترسی پیدا نشد", reply_markup=reply_markup)
+            await self.render(update, "این دسترسی پیدا نشد", reply_markup=reply_markup)
             return
 
         keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("دسترسی با موفقیت حذف شد", reply_markup=reply_markup)
+        await self.render(update, "دسترسی با موفقیت حذف شد", reply_markup=reply_markup)
 
     async def delete_role_permission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1680,14 +1713,15 @@ class BaleBot():
         if not response or "error" in response:
             keyboard = [[InlineKeyboardButton("بازگشت", callback_data=f"select_role_{role_id}")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"در انجام عملیات با یک مشکل مواجه شدیم به پشتیبانی پیام دهید:\n{response}",
                 reply_markup=reply_markup)
             return
 
         keyboard = [[InlineKeyboardButton("بازگشت", callback_data="select_role")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("رول با موفقیت حذف شد", reply_markup=reply_markup)
+        await self.render(update, "رول با موفقیت حذف شد", reply_markup=reply_markup)
 
     async def assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -1701,14 +1735,14 @@ class BaleBot():
 
     async def select_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         phone_number = context.chat_data.get("phone_number")
         body = {"requested_by": context.user_data["user_id"], "phone_number": phone_number}
         response = self.publisher.get_roles(body=body)
 
         if not response or not isinstance(response, list):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
 
         keyboard = [
@@ -1716,11 +1750,11 @@ class BaleBot():
         ]
         keyboard += [[InlineKeyboardButton("بازگشت", callback_data="admin_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.effective_message.reply_text("لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
+        await self.render(update, "لطفا رول مورد نظر خود را انتخاب کنید", reply_markup=reply_markup)
 
     async def selected_assign_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1740,10 +1774,11 @@ class BaleBot():
 
         if not response or "error" in response:
             error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-            await update.effective_message.reply_text(f"متاسفانه با مشکل مواجه شد:\n{error_msg}", reply_markup=reply_markup)
+            await self.render(update, f"متاسفانه با مشکل مواجه شد:\n{error_msg}", reply_markup=reply_markup)
             return
 
-        await update.effective_message.reply_text(
+        await self.render(
+            update,
             f"رول با موفقیت به یوزر {response['first_name']} {response['last_name']} اضافه شد.\nرول های این کاربر:\n" + "\n".join(
                 role["name"] for role in response["roles"]
             ),
@@ -1819,7 +1854,7 @@ class BaleBot():
 
     async def selected_delete_user_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.user_data.get("user_id"):
-            await update.effective_message.reply_text("ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
             return
         query = update.callback_query
         await query.answer()
@@ -1839,12 +1874,13 @@ class BaleBot():
 
         if not response or "error" in response:
             error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-            await update.effective_message.reply_text(
+            await self.render(
+                update,
                 f"متاسفانه با مشکل مواجه شدیم:\n{error_msg}", reply_markup=reply_markup
             )
             return
 
-        await update.effective_message.reply_text("رول با موفقیت از این کاربر حذف شد", reply_markup=reply_markup)
+        await self.render(update, "رول با موفقیت از این کاربر حذف شد", reply_markup=reply_markup)
 
 
 if __name__ == "__main__":
