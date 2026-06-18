@@ -48,9 +48,12 @@ async def bot():
     # Patch Message.reply_text and CallbackQuery.answer at class level so
     # tests don't need bot injection on manually constructed objects.
     with patch.object(Message, "reply_text", new_callable=AsyncMock) as mock_reply, \
+         patch.object(Message, "reply_photo", new_callable=AsyncMock) as mock_photo, \
          patch.object(CallbackQuery, "edit_message_text", new_callable=AsyncMock) as mock_edit, \
          patch.object(CallbackQuery, "answer", new_callable=AsyncMock):
         bale_bot.mock_reply = mock_reply
+        # Proof photos in the admin transactions list (KAA-64) go through reply_photo.
+        bale_bot.mock_photo = mock_photo
         # Menu navigation now edits the message in place instead of sending a new
         # one (KAA-55), so tests must look at edit_message_text calls too.
         bale_bot.mock_edit = mock_edit

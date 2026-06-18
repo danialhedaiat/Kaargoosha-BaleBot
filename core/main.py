@@ -1632,36 +1632,50 @@ class BaleBot():
 
     async def show_transactions_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response, tx_token=None):
         back = f"tx_type_{tx_token}" if tx_token else "transactions_menu"
-        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت", callback_data=back)]])
+        reply_markup_back = InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت", callback_data=back)]])
 
         if response is None:
-            await self.render(update, "پاسخی دریافت نشد", reply_markup=reply_markup)
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=reply_markup_back)
             return
         if isinstance(response, dict):
             error_msg = response.get("error", "خطای ناشناخته")
-            await self.render(update, f"خطا: {error_msg}", reply_markup=reply_markup)
+            await self.render(update, f"خطا: {error_msg}", reply_markup=reply_markup_back)
             return
         if len(response) == 0:
-            await self.render(update, "تراکنشی یافت نشد", reply_markup=reply_markup)
+            await self.render(update, "تراکنشی یافت نشد", reply_markup=reply_markup_back)
             return
 
         status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
         type_map = {"deposit": "شارژ کیف پول", "installment_payment": "پرداخت اقساط", "loan_disbursement": "پرداخت وام"}
+        approve_cb = {"deposit": "deposit_approve", "installment_payment": "installment_payment_approve"}
+        reject_cb = {"deposit": "deposit_reject", "installment_payment": "installment_payment_reject"}
 
-        limit = 15
-        lines = []
-        for tx in response[:limit]:
-            lines.append(
+        for tx in response:
+            text = (
                 f"#{tx['id']} — {type_map.get(tx['type'], tx['type'])}\n"
                 f"کاربر: {tx['first_name']} {tx['last_name']}\n"
-                f"مبلغ: {tx['amount']:,} تومان\n"
+                f"مبلغ: {tx['amount']:,} ریال\n"
                 f"وضعیت: {status_map.get(tx['status'], tx['status'])}\n"
                 f"تاریخ: {tx['created_at']}"
             )
-        text = f"تعداد نتایج: {len(response)}\n\n" + "\n\n".join(lines)
-        if len(response) > limit:
-            text += f"\n\n... و {len(response) - limit} مورد دیگر"
-        await self.render(update, text, reply_markup=reply_markup)
+            keyboard = None
+            if tx["status"] == "pending" and tx["type"] in approve_cb:
+                ref = tx["reference_id"]
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ تایید", callback_data=f"{approve_cb[tx['type']]}_{ref}"),
+                    InlineKeyboardButton("❌ رد کردن", callback_data=f"{reject_cb[tx['type']]}_{ref}"),
+                ]])
+
+            proof_type = tx.get("proof_type")
+            proof_content = tx.get("proof_content")
+            if proof_type == "photo" and proof_content:
+                await update.effective_message.reply_photo(photo=proof_content, caption=text, reply_markup=keyboard)
+            elif proof_type == "text" and proof_content:
+                await update.effective_message.reply_text(f"{text}\nمتن رسید: {proof_content}", reply_markup=keyboard)
+            else:
+                await update.effective_message.reply_text(text, reply_markup=keyboard)
+
+        await update.effective_message.reply_text("پایان لیست", reply_markup=reply_markup_back)
 
     async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "create_role"

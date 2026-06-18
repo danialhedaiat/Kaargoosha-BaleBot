@@ -44,4 +44,4 @@ class TestAdminTransactionsMenu:
         _reset(bot)
         await process(bot, make_callback("tx_rng_dep_all_month", update_id=1218), wait=1.5)
         texts = sent_texts(bot)
-        assert any("تعداد نتایج" in t or "تراکنشی یافت نشد" in t for t in texts), texts
+        assert any("پایان لیست" in t or "تراکنشی یافت نشد" in t for t in texts), texts
