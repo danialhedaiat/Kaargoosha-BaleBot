@@ -140,6 +140,10 @@ class BotPublisher:
         response = self.publish(exchange="loan", routing_key="loan.get_loans", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def list_transactions(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="transaction", routing_key="transaction.list", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def get_bank_info(self, body, callback, callback_kwargs):
         response = self.publish(exchange="bank_info", routing_key="bank_info.get", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

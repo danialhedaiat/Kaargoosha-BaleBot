@@ -108,6 +108,10 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.loans_approved, pattern="^loans_approved$"))
         self.app.add_handler(CallbackQueryHandler(self.loans_rejected, pattern="^loans_rejected$"))
         self.app.add_handler(CallbackQueryHandler(self.loans_filtered, pattern=r"^loans_(approved|rejected)_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.transactions_menu, pattern="^transactions_menu$"))
+        self.app.add_handler(CallbackQueryHandler(self.transactions_status_menu, pattern=r"^tx_type_(dep|inst)$"))
+        self.app.add_handler(CallbackQueryHandler(self.transactions_range_menu, pattern=r"^tx_st_(dep|inst)_(approved|pending|rejected|all)$"))
+        self.app.add_handler(CallbackQueryHandler(self.transactions_list, pattern=r"^tx_rng_(dep|inst)_(approved|pending|rejected|all)_(day|week|month)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.photo_listener))
@@ -673,6 +677,7 @@ class BaleBot():
             keyboard = [
                 [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
                 [InlineKeyboardButton("وام ها", callback_data="loans_menu")],
+                [InlineKeyboardButton("تراکنش‌ها", callback_data="transactions_menu")],
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1558,6 +1563,105 @@ class BaleBot():
                 await update.effective_message.reply_text(text)
 
         await update.effective_message.reply_text("پایان لیست", reply_markup=reply_markup_back)
+
+    async def transactions_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("شارژ کیف پول", callback_data="tx_type_dep")],
+            [InlineKeyboardButton("پرداخت اقساط", callback_data="tx_type_inst")],
+            [InlineKeyboardButton("بازگشت", callback_data="admin_menu")],
+        ]
+        await self.render(update, "نوع تراکنش را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def transactions_status_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        t = re.match(r"^tx_type_(dep|inst)$", query.data).group(1)
+        keyboard = [
+            [InlineKeyboardButton("تاییدشده‌ها", callback_data=f"tx_st_{t}_approved")],
+            [InlineKeyboardButton("در انتظار", callback_data=f"tx_st_{t}_pending")],
+            [InlineKeyboardButton("ردشده‌ها", callback_data=f"tx_st_{t}_rejected")],
+            [InlineKeyboardButton("همه", callback_data=f"tx_st_{t}_all")],
+            [InlineKeyboardButton("بازگشت", callback_data="transactions_menu")],
+        ]
+        await self.render(update, "وضعیت را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def transactions_range_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        match = re.match(r"^tx_st_(dep|inst)_(approved|pending|rejected|all)$", query.data)
+        t, status = match.group(1), match.group(2)
+        keyboard = [
+            [InlineKeyboardButton("روز گذشته", callback_data=f"tx_rng_{t}_{status}_day")],
+            [InlineKeyboardButton("هفته گذشته", callback_data=f"tx_rng_{t}_{status}_week")],
+            [InlineKeyboardButton("ماه گذشته", callback_data=f"tx_rng_{t}_{status}_month")],
+            [InlineKeyboardButton("بازگشت", callback_data=f"tx_type_{t}")],
+        ]
+        await self.render(update, "بازه زمانی را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def transactions_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        match = re.match(r"^tx_rng_(dep|inst)_(approved|pending|rejected|all)_(day|week|month)$", query.data)
+        t, status, rng = match.group(1), match.group(2), match.group(3)
+        tx_type = "deposit" if t == "dep" else "installment_payment"
+        body = {
+            "requested_by": context.user_data["user_id"],
+            "type": tx_type,
+            "status": status,
+            "range": rng,
+        }
+        self.publisher.list_transactions(
+            body=body,
+            callback=self.show_transactions_list,
+            callback_kwargs={"update": update, "context": context, "tx_token": t},
+        )
+
+    async def show_transactions_list(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response, tx_token=None):
+        back = f"tx_type_{tx_token}" if tx_token else "transactions_menu"
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت", callback_data=back)]])
+
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=reply_markup)
+            return
+        if isinstance(response, dict):
+            error_msg = response.get("error", "خطای ناشناخته")
+            await self.render(update, f"خطا: {error_msg}", reply_markup=reply_markup)
+            return
+        if len(response) == 0:
+            await self.render(update, "تراکنشی یافت نشد", reply_markup=reply_markup)
+            return
+
+        status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+        type_map = {"deposit": "شارژ کیف پول", "installment_payment": "پرداخت اقساط", "loan_disbursement": "پرداخت وام"}
+
+        limit = 15
+        lines = []
+        for tx in response[:limit]:
+            lines.append(
+                f"#{tx['id']} — {type_map.get(tx['type'], tx['type'])}\n"
+                f"کاربر: {tx['first_name']} {tx['last_name']}\n"
+                f"مبلغ: {tx['amount']:,} تومان\n"
+                f"وضعیت: {status_map.get(tx['status'], tx['status'])}\n"
+                f"تاریخ: {tx['created_at']}"
+            )
+        text = f"تعداد نتایج: {len(response)}\n\n" + "\n\n".join(lines)
+        if len(response) > limit:
+            text += f"\n\n... و {len(response) - limit} مورد دیگر"
+        await self.render(update, text, reply_markup=reply_markup)
 
     async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "create_role"
