@@ -467,11 +467,12 @@ class BaleBot():
                 context.user_data["deposit_flag"] = None
                 body = {
                     "user_id": context.user_data["user_id"],
+                    "type": "deposit",
                     "amount": context.user_data["deposit_amount"],
                     "proof_type": "text",
-                    "proof_content": proof_content,
+                    "proof_text": proof_content,
                 }
-                self.publisher.deposit_create(
+                self.publisher.create_receipt(
                     body=body,
                     callback=self.after_deposit_create,
                     callback_kwargs={"update": update, "context": context},
@@ -498,11 +499,12 @@ class BaleBot():
                 context.user_data["installment_payment_proof_flag"] = None
                 body = {
                     "user_id": context.user_data["user_id"],
+                    "type": "installment_payment",
                     "installment_id": installment_id,
                     "proof_type": "text",
-                    "proof_content": proof_content,
+                    "proof_text": proof_content,
                 }
-                self.publisher.create_installment_payment(
+                self.publisher.create_receipt(
                     body=body,
                     callback=self.after_installment_payment_create,
                     callback_kwargs={"update": update, "context": context},
@@ -859,18 +861,26 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
+    async def _download_proof_bytes(self, context: ContextTypes.DEFAULT_TYPE, file_id: str) -> bytes:
+        """Download a Bale photo's bytes so the proof can be persisted as a media file."""
+        file = await context.bot.get_file(file_id)
+        return bytes(await file.download_as_bytearray())
+
     async def photo_listener(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             file_id = update.message.photo[-1].file_id
             if context.user_data.get("deposit_flag") == "proof":
                 context.user_data["deposit_flag"] = None
+                proof_bytes = await self._download_proof_bytes(context, file_id)
                 body = {
                     "user_id": context.user_data["user_id"],
+                    "type": "deposit",
                     "amount": context.user_data["deposit_amount"],
                     "proof_type": "photo",
-                    "proof_content": file_id,
+                    "proof_bytes": proof_bytes,
+                    "proof_ext": "jpg",
                 }
-                self.publisher.deposit_create(
+                self.publisher.create_receipt(
                     body=body,
                     callback=self.after_deposit_create,
                     callback_kwargs={"update": update, "context": context},
@@ -878,13 +888,16 @@ class BaleBot():
             elif context.user_data.get("installment_payment_proof_flag"):
                 installment_id = context.user_data["installment_payment_proof_flag"]
                 context.user_data["installment_payment_proof_flag"] = None
+                proof_bytes = await self._download_proof_bytes(context, file_id)
                 body = {
                     "user_id": context.user_data["user_id"],
+                    "type": "installment_payment",
                     "installment_id": installment_id,
                     "proof_type": "photo",
-                    "proof_content": file_id,
+                    "proof_bytes": proof_bytes,
+                    "proof_ext": "jpg",
                 }
-                self.publisher.create_installment_payment(
+                self.publisher.create_receipt(
                     body=body,
                     callback=self.after_installment_payment_create,
                     callback_kwargs={"update": update, "context": context},

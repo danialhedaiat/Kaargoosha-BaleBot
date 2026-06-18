@@ -43,6 +43,10 @@ async def bot():
     )
     bale_bot.app.bot.answer_callback_query = AsyncMock(return_value=True)
     bale_bot.app.bot.edit_message_text = AsyncMock(return_value=MagicMock(message_id=1))
+    # Photo proofs are downloaded (get_file -> download_as_bytearray) before upload (KAA-70).
+    _proof_file = MagicMock()
+    _proof_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"fake-image-bytes"))
+    bale_bot.app.bot.get_file = AsyncMock(return_value=_proof_file)
     bale_bot.app.bot._frozen = True
 
     # Patch Message.reply_text and CallbackQuery.answer at class level so

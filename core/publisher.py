@@ -156,6 +156,11 @@ class BotPublisher:
         response = self.publish(exchange="deposit", routing_key="deposit.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def create_receipt(self, body, callback, callback_kwargs):
+        # Larger timeout: photo proofs carry image bytes and the backend writes a media file.
+        response = self.publish(exchange="receipt", routing_key="receipt.create", message=body, timeout=5.0)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def approve_deposit(self, body, callback, callback_kwargs):
         response = self.publish(exchange="deposit", routing_key="deposit.approve", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
