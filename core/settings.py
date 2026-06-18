@@ -16,11 +16,13 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str
     SOCIAL_MEDIA: str
     GOD: str
+    MEDIA_BASE_URL: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(env_file=ENV_PATH)
 
 
 settings = Settings()
+
 
 
 class CustomFormatter(logging.Formatter):

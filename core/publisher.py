@@ -140,8 +140,16 @@ class BotPublisher:
         response = self.publish(exchange="loan", routing_key="loan.get_loans", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
-    def list_transactions(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="transaction", routing_key="transaction.list", message=body)
+    def list_receipts(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="receipt", routing_key="receipt.list", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def approve_receipt(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="receipt", routing_key="receipt.approve", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def reject_receipt(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="receipt", routing_key="receipt.reject", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
     def get_bank_info(self, body, callback, callback_kwargs):

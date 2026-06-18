@@ -4,7 +4,7 @@ Requires: RabbitMQ + FastAPI running, admin user TEST_USERNAME present in DB.
 Update IDs: 1200-1230 (kept clear of the other suites).
 """
 from tests.conftest import (
-    bot, make_command, make_callback, process, sent_texts, all_button_datas,
+    bot, make_command, make_callback, make_text, process, sent_texts, all_button_datas,
 )
 
 
@@ -45,3 +45,22 @@ class TestAdminTransactionsMenu:
         await process(bot, make_callback("tx_rng_dep_all_month", update_id=1218), wait=1.5)
         texts = sent_texts(bot)
         assert any("پایان لیست" in t or "تراکنشی یافت نشد" in t for t in texts), texts
+
+    async def test_pending_receipt_shows_approve_button(self, bot):
+        """A submitted deposit appears as a pending receipt with an approve button."""
+        await _sign_in(bot, base_id=1230)
+        # client submits a wallet-charge receipt (text proof) -> creates a pending receipt
+        await process(bot, make_callback("personal_menu", update_id=1233))
+        await process(bot, make_callback("deposit_wallet", update_id=1234))
+        await process(bot, make_text("700000", update_id=1235))
+        await process(bot, make_text("rasid-test", update_id=1236), wait=1.5)
+
+        # admin views pending wallet-charge receipts
+        await process(bot, make_callback("admin_menu", update_id=1237), wait=1.5)
+        _reset(bot)
+        await process(bot, make_callback("tx_rng_dep_pending_month", update_id=1238), wait=1.5)
+
+        datas = all_button_datas(bot)
+        assert any(d.startswith("receipt_approve_") for d in datas), (
+            f"Expected a receipt_approve button on a pending receipt, got: {datas}"
+        )

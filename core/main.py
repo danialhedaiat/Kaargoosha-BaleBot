@@ -112,6 +112,8 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.transactions_status_menu, pattern=r"^tx_type_(dep|inst)$"))
         self.app.add_handler(CallbackQueryHandler(self.transactions_range_menu, pattern=r"^tx_st_(dep|inst)_(approved|pending|rejected|all)$"))
         self.app.add_handler(CallbackQueryHandler(self.transactions_list, pattern=r"^tx_rng_(dep|inst)_(approved|pending|rejected|all)_(day|week|month)$"))
+        self.app.add_handler(CallbackQueryHandler(self.receipt_approve, pattern=r"^receipt_approve_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.receipt_reject, pattern=r"^receipt_reject_(\d+)$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.photo_listener))
@@ -213,6 +215,7 @@ class BaleBot():
                 "loan_amount", "loan_duration", "loan_approve_flag", "loan_reject_flag",
                 "bank_info_flag", "deposit_flag", "deposit_amount", "deposit_reject_flag",
                 "installment_payment_proof_flag", "installment_payment_reject_flag",
+                "receipt_reject_flag",
             ):
                 context.user_data[flag] = None
             keyboard = [[InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")]]
@@ -490,6 +493,21 @@ class BaleBot():
                 self.publisher.reject_deposit(
                     body=body,
                     callback=self.after_deposit_reject,
+                    callback_kwargs={"update": update, "context": context},
+                )
+
+            elif context.user_data.get("receipt_reject_flag"):
+                reason = update.message.text.strip()
+                receipt_id = context.user_data["receipt_reject_flag"]
+                context.user_data["receipt_reject_flag"] = None
+                body = {
+                    "receipt_id": receipt_id,
+                    "requested_by": context.user_data["user_id"],
+                    "rejection_reason": reason,
+                }
+                self.publisher.reject_receipt(
+                    body=body,
+                    callback=self.after_receipt_action,
                     callback_kwargs={"update": update, "context": context},
                 )
 
@@ -1637,7 +1655,7 @@ class BaleBot():
             "status": status,
             "range": rng,
         }
-        self.publisher.list_transactions(
+        self.publisher.list_receipts(
             body=body,
             callback=self.show_transactions_list,
             callback_kwargs={"update": update, "context": context, "tx_token": t},
@@ -1660,35 +1678,70 @@ class BaleBot():
 
         status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
         type_map = {"deposit": "شارژ کیف پول", "installment_payment": "پرداخت اقساط", "loan_disbursement": "پرداخت وام"}
-        approve_cb = {"deposit": "deposit_approve", "installment_payment": "installment_payment_approve"}
-        reject_cb = {"deposit": "deposit_reject", "installment_payment": "installment_payment_reject"}
 
-        for tx in response:
+        for r in response:
             text = (
-                f"#{tx['id']} — {type_map.get(tx['type'], tx['type'])}\n"
-                f"کاربر: {tx['first_name']} {tx['last_name']}\n"
-                f"مبلغ: {tx['amount']:,} ریال\n"
-                f"وضعیت: {status_map.get(tx['status'], tx['status'])}\n"
-                f"تاریخ: {tx['created_at']}"
+                f"#{r['id']} — {type_map.get(r['type'], r['type'])}\n"
+                f"کاربر: {r['first_name']} {r['last_name']}\n"
+                f"مبلغ: {r['amount']:,} ریال\n"
+                f"وضعیت: {status_map.get(r['status'], r['status'])}\n"
+                f"تاریخ: {r['created_at']}"
             )
+            if r.get("proof_type") == "text" and r.get("proof_text"):
+                text += f"\nمتن رسید: {r['proof_text']}"
+            elif r.get("proof_type") == "photo" and r.get("proof_path"):
+                text += f"\nتصویر رسید: {settings.MEDIA_BASE_URL}/media/{r['proof_path']}"
+
             keyboard = None
-            if tx["status"] == "pending" and tx["type"] in approve_cb:
-                ref = tx["reference_id"]
+            if r["status"] == "pending":
                 keyboard = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("✅ تایید", callback_data=f"{approve_cb[tx['type']]}_{ref}"),
-                    InlineKeyboardButton("❌ رد کردن", callback_data=f"{reject_cb[tx['type']]}_{ref}"),
+                    InlineKeyboardButton("✅ تایید", callback_data=f"receipt_approve_{r['id']}"),
+                    InlineKeyboardButton("❌ رد کردن", callback_data=f"receipt_reject_{r['id']}"),
                 ]])
 
-            proof_type = tx.get("proof_type")
-            proof_content = tx.get("proof_content")
-            if proof_type == "photo" and proof_content:
-                await update.effective_message.reply_photo(photo=proof_content, caption=text, reply_markup=keyboard)
-            elif proof_type == "text" and proof_content:
-                await update.effective_message.reply_text(f"{text}\nمتن رسید: {proof_content}", reply_markup=keyboard)
-            else:
-                await update.effective_message.reply_text(text, reply_markup=keyboard)
+            await update.effective_message.reply_text(text, reply_markup=keyboard)
 
         await update.effective_message.reply_text("پایان لیست", reply_markup=reply_markup_back)
+
+    async def receipt_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            receipt_id = int(re.match(r"^receipt_approve_(\d+)$", query.data).group(1))
+            body = {"receipt_id": receipt_id, "requested_by": context.user_data["user_id"]}
+            self.publisher.approve_receipt(
+                body=body,
+                callback=self.after_receipt_action,
+                callback_kwargs={"update": update, "context": context},
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def receipt_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            query = update.callback_query
+            await query.answer()
+            receipt_id = int(re.match(r"^receipt_reject_(\d+)$", query.data).group(1))
+            context.user_data["receipt_reject_flag"] = receipt_id
+            await update.effective_message.reply_text(
+                f"درخواست شماره {receipt_id}\nلطفا دلیل رد را وارد کنید:"
+            )
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
+    async def after_receipt_action(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
+        try:
+            if response is None or "error" in response:
+                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
+                await self.render(update, f"❌ خطا: {error_msg}")
+                return
+            status_fa = {"approved": "تایید شد", "rejected": "رد شد"}.get(response.get("status"), response.get("status"))
+            await self.render(update, f"✅ درخواست شماره {response.get('id')} {status_fa}")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
     async def create_role(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["flow"] = "create_role"
