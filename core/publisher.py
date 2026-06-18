@@ -160,37 +160,13 @@ class BotPublisher:
         response = self.publish(exchange="bank_info", routing_key="bank_info.save", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
-    def deposit_create(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="deposit", routing_key="deposit.create", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
     def create_receipt(self, body, callback, callback_kwargs):
         # Larger timeout: photo proofs carry image bytes and the backend writes a media file.
         response = self.publish(exchange="receipt", routing_key="receipt.create", message=body, timeout=5.0)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
-    def approve_deposit(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="deposit", routing_key="deposit.approve", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
-    def reject_deposit(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="deposit", routing_key="deposit.reject", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
     def get_pending_installments(self, body, callback, callback_kwargs):
         response = self.publish(exchange="installment_payment", routing_key="installment_payment.get_pending", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
-    def create_installment_payment(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="installment_payment", routing_key="installment_payment.create", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
-    def approve_installment_payment(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="installment_payment", routing_key="installment_payment.approve", message=body)
-        self.run_callback(callback, callback_kwargs, {"response": response})
-
-    def reject_installment_payment(self, body, callback, callback_kwargs):
-        response = self.publish(exchange="installment_payment", routing_key="installment_payment.reject", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
     def create_role(self, body, callback, callback_kwargs):

@@ -83,12 +83,8 @@ class BaleBot():
                                                   pattern=r"^select_assign_role_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.deposit_wallet, pattern="^deposit_wallet$"))
-        self.app.add_handler(CallbackQueryHandler(self.deposit_approve, pattern=r"^deposit_approve_(\d+)$"))
-        self.app.add_handler(CallbackQueryHandler(self.deposit_reject, pattern=r"^deposit_reject_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.pay_installment_menu, pattern="^pay_installment$"))
         self.app.add_handler(CallbackQueryHandler(self.installment_selected, pattern=r"^pay_installment_(\d+)$"))
-        self.app.add_handler(CallbackQueryHandler(self.installment_payment_approve, pattern=r"^installment_payment_approve_(\d+)$"))
-        self.app.add_handler(CallbackQueryHandler(self.installment_payment_reject, pattern=r"^installment_payment_reject_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.bank_info, pattern="^bank_info$"))
         self.app.add_handler(CallbackQueryHandler(self.bank_info_view, pattern="^bank_info_view$"))
         self.app.add_handler(CallbackQueryHandler(self.bank_info_update_menu, pattern="^bank_info_update$"))
@@ -177,9 +173,7 @@ class BaleBot():
             context.user_data["bank_info_flag"] = None
             context.user_data["deposit_flag"] = None
             context.user_data["deposit_amount"] = None
-            context.user_data["deposit_reject_flag"] = None
             context.user_data["installment_payment_proof_flag"] = None
-            context.user_data["installment_payment_reject_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -213,8 +207,8 @@ class BaleBot():
                 "firstname_flag", "lastname_flag", "role_name_flag", "assign_role_flag",
                 "user_role_list_flag", "delete_user_role_flag", "loan_flow",
                 "loan_amount", "loan_duration", "loan_approve_flag", "loan_reject_flag",
-                "bank_info_flag", "deposit_flag", "deposit_amount", "deposit_reject_flag",
-                "installment_payment_proof_flag", "installment_payment_reject_flag",
+                "bank_info_flag", "deposit_flag", "deposit_amount",
+                "installment_payment_proof_flag",
                 "receipt_reject_flag",
             ):
                 context.user_data[flag] = None
@@ -481,21 +475,6 @@ class BaleBot():
                     callback_kwargs={"update": update, "context": context},
                 )
 
-            elif context.user_data.get("deposit_reject_flag"):
-                reason = update.message.text.strip()
-                deposit_id = context.user_data["deposit_reject_flag"]
-                context.user_data["deposit_reject_flag"] = None
-                body = {
-                    "deposit_id": deposit_id,
-                    "requested_by": context.user_data["user_id"],
-                    "rejection_reason": reason,
-                }
-                self.publisher.reject_deposit(
-                    body=body,
-                    callback=self.after_deposit_reject,
-                    callback_kwargs={"update": update, "context": context},
-                )
-
             elif context.user_data.get("receipt_reject_flag"):
                 reason = update.message.text.strip()
                 receipt_id = context.user_data["receipt_reject_flag"]
@@ -525,21 +504,6 @@ class BaleBot():
                 self.publisher.create_receipt(
                     body=body,
                     callback=self.after_installment_payment_create,
-                    callback_kwargs={"update": update, "context": context},
-                )
-
-            elif context.user_data.get("installment_payment_reject_flag"):
-                reason = update.message.text.strip()
-                installment_payment_id = context.user_data["installment_payment_reject_flag"]
-                context.user_data["installment_payment_reject_flag"] = None
-                body = {
-                    "installment_payment_id": installment_payment_id,
-                    "requested_by": context.user_data["user_id"],
-                    "rejection_reason": reason,
-                }
-                self.publisher.reject_installment_payment(
-                    body=body,
-                    callback=self.after_installment_payment_reject,
                     callback_kwargs={"update": update, "context": context},
                 )
 
@@ -950,104 +914,6 @@ class BaleBot():
             logger.error(traceback.format_exc())
             logger.error(e)
 
-    async def handle_notify_deposit_request(self, data: dict):
-        try:
-            recipients = data.get("recipients", [])
-            chat_ids = [
-                r["chat_id"] for r in recipients
-                if r.get("social_media") == settings.SOCIAL_MEDIA
-            ]
-            deposit_id = data.get("deposit_id")
-            user_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
-            amount = data.get("amount")
-            proof_type = data.get("proof_type")
-            proof_content = data.get("proof_content")
-
-            text = (
-                f"درخواست شارژ کیف پول جدید:\n"
-                f"کاربر: {user_name}\n"
-                f"مبلغ: {amount:,} تومان\n"
-                f"نوع مدرک: {'عکس' if proof_type == 'photo' else 'متن'}"
-            )
-            keyboard = [
-                [
-                    InlineKeyboardButton("✅ تایید", callback_data=f"deposit_approve_{deposit_id}"),
-                    InlineKeyboardButton("❌ رد کردن", callback_data=f"deposit_reject_{deposit_id}"),
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            for chat_id in chat_ids:
-                if proof_type == "photo":
-                    await self.app.bot.send_photo(
-                        chat_id=chat_id, photo=proof_content, caption=text, reply_markup=reply_markup
-                    )
-                else:
-                    await self.app.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"{text}\nمتن رسید: {proof_content}",
-                        reply_markup=reply_markup
-                    )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def deposit_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
-            match = re.match(r"^deposit_approve_(\d+)$", query.data)
-            deposit_id = int(match.group(1))
-            body = {
-                "deposit_id": deposit_id,
-                "requested_by": context.user_data["user_id"],
-            }
-            self.publisher.approve_deposit(
-                body=body,
-                callback=self.after_deposit_approve,
-                callback_kwargs={"update": update, "context": context},
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def after_deposit_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await self.render(update, f"❌ خطا در تایید: {error_msg}")
-                return
-            deposit_id = response.get("id")
-            await self.render(update, f"✅ درخواست شارژ شماره {deposit_id} تایید شد")
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def deposit_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
-            match = re.match(r"^deposit_reject_(\d+)$", query.data)
-            deposit_id = int(match.group(1))
-            context.user_data["deposit_reject_flag"] = deposit_id
-            await update.effective_message.reply_text(
-                f"درخواست شارژ شماره {deposit_id}\nلطفا دلیل رد را وارد کنید:"
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def after_deposit_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در رد: {error_msg}")
-                return
-            await update.effective_message.reply_text("✅ درخواست شارژ رد شد")
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
     async def pay_installment_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             body = {"user_id": context.user_data["user_id"]}
@@ -1117,105 +983,6 @@ class BaleBot():
                 "درخواست پرداخت قسط ثبت شد ✅ در انتظار تایید ادمین",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def handle_notify_installment_payment_request(self, data: dict):
-        try:
-            recipients = data.get("recipients", [])
-            chat_ids = [
-                r["chat_id"] for r in recipients
-                if r.get("social_media") == settings.SOCIAL_MEDIA
-            ]
-            request_id = data.get("request_id")
-            user_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
-            amount = data.get("amount")
-            due_date = data.get("due_date")
-            proof_type = data.get("proof_type")
-            proof_content = data.get("proof_content")
-
-            text = (
-                f"درخواست پرداخت قسط جدید:\n"
-                f"کاربر: {user_name}\n"
-                f"مبلغ: {amount:,} تومان\n"
-                f"سررسید: {due_date}\n"
-                f"نوع مدرک: {'عکس' if proof_type == 'photo' else 'متن'}"
-            )
-            keyboard = [
-                [
-                    InlineKeyboardButton("✅ تایید", callback_data=f"installment_payment_approve_{request_id}"),
-                    InlineKeyboardButton("❌ رد کردن", callback_data=f"installment_payment_reject_{request_id}"),
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            for chat_id in chat_ids:
-                if proof_type == "photo":
-                    await self.app.bot.send_photo(
-                        chat_id=chat_id, photo=proof_content, caption=text, reply_markup=reply_markup
-                    )
-                else:
-                    await self.app.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"{text}\nمتن رسید: {proof_content}",
-                        reply_markup=reply_markup
-                    )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def installment_payment_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
-            match = re.match(r"^installment_payment_approve_(\d+)$", query.data)
-            installment_payment_id = int(match.group(1))
-            body = {
-                "installment_payment_id": installment_payment_id,
-                "requested_by": context.user_data["user_id"],
-            }
-            self.publisher.approve_installment_payment(
-                body=body,
-                callback=self.after_installment_payment_approve,
-                callback_kwargs={"update": update, "context": context},
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def after_installment_payment_approve(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await self.render(update, f"❌ خطا در تایید: {error_msg}")
-                return
-            await self.render(update, "✅ قسط تایید شد")
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def installment_payment_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            query = update.callback_query
-            await query.answer()
-            match = re.match(r"^installment_payment_reject_(\d+)$", query.data)
-            installment_payment_id = int(match.group(1))
-            context.user_data["installment_payment_reject_flag"] = installment_payment_id
-            await update.effective_message.reply_text(
-                f"درخواست پرداخت قسط شماره {installment_payment_id}\nلطفا دلیل رد را وارد کنید:"
-            )
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-    async def after_installment_payment_reject(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response: dict):
-        try:
-            if response is None or "error" in response:
-                error_msg = response.get("error", "خطای ناشناخته") if response else "پاسخی دریافت نشد"
-                await update.effective_message.reply_text(f"❌ خطا در رد: {error_msg}")
-                return
-            await update.effective_message.reply_text("✅ رد شد")
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
