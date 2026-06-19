@@ -9,6 +9,7 @@ ENV_PATH = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
     BASE_URL: str
+    BASE_FILE_URL: str = "https://tapi.bale.ai/file/bot"
     BOT_TOKEN: str
     RABBITMQ_HOST: str
     RABBITMQ_PORT: int

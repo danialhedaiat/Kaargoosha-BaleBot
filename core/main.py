@@ -42,6 +42,7 @@ class BaleBot():
         logger.info("Init Bale Bot")
         self.app = ApplicationBuilder()
         self.app.base_url(settings.BASE_URL)
+        self.app.base_file_url(settings.BASE_FILE_URL)
         self.app.token(settings.BOT_TOKEN)
         self.app = self.app.build()
 
