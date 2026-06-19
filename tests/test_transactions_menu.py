@@ -4,7 +4,7 @@ Requires: RabbitMQ + FastAPI running, admin user TEST_USERNAME present in DB.
 Update IDs: 1200-1230 (kept clear of the other suites).
 """
 from tests.conftest import (
-    bot, make_command, make_callback, make_text, process, sent_texts, all_button_datas,
+    bot, make_command, make_callback, make_text, make_photo, process, sent_texts, all_button_datas,
 )
 
 
@@ -64,3 +64,17 @@ class TestAdminTransactionsMenu:
         assert any(d.startswith("receipt_approve_") for d in datas), (
             f"Expected a receipt_approve button on a pending receipt, got: {datas}"
         )
+
+    async def test_pending_photo_receipt_sends_image_to_admin(self, bot):
+        """A photo-proof receipt is shown to the admin as an actual image, not a link."""
+        await _sign_in(bot, base_id=1240)
+        await process(bot, make_callback("personal_menu", update_id=1243))
+        await process(bot, make_callback("deposit_wallet", update_id=1244))
+        await process(bot, make_text("800000", update_id=1245))
+        await process(bot, make_photo(update_id=1246), wait=1.5)  # photo proof -> receipt
+
+        await process(bot, make_callback("admin_menu", update_id=1247), wait=1.5)
+        bot.mock_photo.reset_mock()
+        await process(bot, make_callback("tx_rng_dep_pending_month", update_id=1248), wait=1.5)
+
+        assert bot.mock_photo.call_count >= 1, "Expected the receipt photo to be sent to the admin"

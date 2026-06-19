@@ -144,6 +144,11 @@ class BotPublisher:
         response = self.publish(exchange="receipt", routing_key="receipt.list", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def get_receipt_proof(self, body):
+        # Returns {"proof_type": "photo", "proof_bytes": <bytes>, "ext": ...} or
+        # {"proof_type": "text", "proof_text": ...} or {"error": ...} / None.
+        return self.publish(exchange="receipt", routing_key="receipt.get_proof", message=body, timeout=5.0)
+
     def approve_receipt(self, body, callback, callback_kwargs):
         response = self.publish(exchange="receipt", routing_key="receipt.approve", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

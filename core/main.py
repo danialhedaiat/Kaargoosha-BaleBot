@@ -2,6 +2,7 @@ import asyncio
 import re
 import json
 import traceback
+from io import BytesIO
 
 from telegram import BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, \
     ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -1455,11 +1456,6 @@ class BaleBot():
                 f"وضعیت: {status_map.get(r['status'], r['status'])}\n"
                 f"تاریخ: {r['created_at']}"
             )
-            if r.get("proof_type") == "text" and r.get("proof_text"):
-                text += f"\nمتن رسید: {r['proof_text']}"
-            elif r.get("proof_type") == "photo" and r.get("proof_path"):
-                text += f"\nتصویر رسید: {settings.MEDIA_BASE_URL}/media/{r['proof_path']}"
-
             keyboard = None
             if r["status"] == "pending":
                 keyboard = InlineKeyboardMarkup([[
@@ -1467,7 +1463,25 @@ class BaleBot():
                     InlineKeyboardButton("❌ رد کردن", callback_data=f"receipt_reject_{r['id']}"),
                 ]])
 
-            await update.effective_message.reply_text(text, reply_markup=keyboard)
+            if r.get("proof_type") == "photo":
+                proof = self.publisher.get_receipt_proof({
+                    "receipt_id": r["id"],
+                    "requested_by": context.user_data["user_id"],
+                })
+                if isinstance(proof, dict) and proof.get("proof_bytes"):
+                    bio = BytesIO(proof["proof_bytes"])
+                    bio.name = f"receipt_{r['id']}.{proof.get('ext', 'jpg')}"
+                    await update.effective_message.reply_photo(photo=bio, caption=text, reply_markup=keyboard)
+                else:
+                    await update.effective_message.reply_text(
+                        f"{text}\n(تصویر رسید در دسترس نیست)", reply_markup=keyboard
+                    )
+            elif r.get("proof_type") == "text" and r.get("proof_text"):
+                await update.effective_message.reply_text(
+                    f"{text}\nمتن رسید: {r['proof_text']}", reply_markup=keyboard
+                )
+            else:
+                await update.effective_message.reply_text(text, reply_markup=keyboard)
 
         await update.effective_message.reply_text("پایان لیست", reply_markup=reply_markup_back)
 
