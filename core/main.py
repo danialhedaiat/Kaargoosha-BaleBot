@@ -83,6 +83,8 @@ class BaleBot():
                                                   pattern=r"^revoke_selected_permission_(\d+)_([A-Z_]+)$"))
         self.app.add_handler(CallbackQueryHandler(self.selected_assign_role,
                                                   pattern=r"^select_assign_role_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.close_account, pattern="^close_account$"))
+        self.app.add_handler(CallbackQueryHandler(self.close_account_confirm, pattern="^close_account_confirm$"))
         self.app.add_handler(CallbackQueryHandler(self.personal_menu, pattern="^personal_menu$"))
         self.app.add_handler(CallbackQueryHandler(self.deposit_wallet, pattern="^deposit_wallet$"))
         self.app.add_handler(CallbackQueryHandler(self.pay_installment_menu, pattern="^pay_installment$"))
@@ -180,6 +182,7 @@ class BaleBot():
             context.user_data["deposit_flag"] = None
             context.user_data["deposit_amount"] = None
             context.user_data["installment_payment_proof_flag"] = None
+            context.user_data["account_close_flag"] = None
 
             keyboard = [
                 [InlineKeyboardButton("ورود به حساب کاربری", callback_data="sign_in")],
@@ -215,7 +218,7 @@ class BaleBot():
                 "loan_amount", "loan_duration", "loan_approve_flag", "loan_reject_flag",
                 "bank_info_flag", "deposit_flag", "deposit_amount",
                 "installment_payment_proof_flag",
-                "receipt_reject_flag",
+                "receipt_reject_flag", "account_close_flag",
             ):
                 context.user_data[flag] = None
             keyboard = [[InlineKeyboardButton("منوی شخصی", callback_data="personal_menu")]]
@@ -420,6 +423,18 @@ class BaleBot():
                 body = {"phone_number": phone_number, "requested_by": context.user_data["user_id"]}
                 self.publisher.get_user_roles(body=body, callback=self.show_user_roles_for_delete,
                                               callback_kwargs={"update": update, "context": context})
+
+            elif context.user_data.get("account_close_flag"):
+                username = update.message.text.strip()
+                if not username:
+                    await update.effective_message.reply_text("لطفا نام کاربری معتبر وارد کنید")
+                    return
+                context.user_data["account_close_flag"] = False
+                self.publisher.get_user_by_username(
+                    body={"username": username},
+                    callback=self.after_close_lookup,
+                    callback_kwargs={"update": update, "context": context},
+                )
 
             elif context.user_data.get("loan_approve_flag"):
                 amount_text = update.message.text.strip()
@@ -668,6 +683,7 @@ class BaleBot():
                 [InlineKeyboardButton("تنظیمات رول", callback_data="role_settings")],
                 [InlineKeyboardButton("وام ها", callback_data="loans_menu")],
                 [InlineKeyboardButton("تراکنش‌ها", callback_data="transactions_menu")],
+                [InlineKeyboardButton("بستن حساب کاربر", callback_data="close_account")],
                 [InlineKeyboardButton("بازگشت", callback_data="sign_in")],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -701,6 +717,87 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+    async def close_account(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        context.user_data["account_close_flag"] = True
+        await self.render(update, "نام کاربری کاربری که می‌خواهید حسابش بسته شود را وارد کنید:")
+
+    async def after_close_lookup(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت به منوی ادمین", callback_data="admin_menu")]])
+        if response is None or "error" in response:
+            await self.render(update, "کاربری با این نام کاربری یافت نشد", reply_markup=back)
+            return
+        context.user_data["close_target_id"] = response["id"]
+        target_name = f"{response.get('first_name', '')} {response.get('last_name', '')}".strip()
+        context.user_data["close_target_name"] = target_name
+        keyboard = [
+            [InlineKeyboardButton("✅ تایید بستن حساب", callback_data="close_account_confirm")],
+            [InlineKeyboardButton("❌ انصراف", callback_data="admin_menu")],
+        ]
+        await self.render(
+            update,
+            f"آیا از بستن حساب «{target_name}» مطمئن هستید؟\n"
+            "بدهی کاربر از موجودی او تسویه و باقی‌مانده به او پرداخت می‌شود. این عملیات قابل بازگشت نیست.",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+
+    async def close_account_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+        target_id = context.user_data.get("close_target_id")
+        if not target_id:
+            await self.render(update, "ابتدا کاربر مورد نظر را انتخاب کنید")
+            return
+        body = {"user_id": target_id, "requested_by": context.user_data["user_id"]}
+        self.publisher.close_account(
+            body=body,
+            callback=self.after_account_close,
+            callback_kwargs={"update": update, "context": context},
+        )
+
+    async def after_account_close(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت به منوی ادمین", callback_data="admin_menu")]])
+        name = context.user_data.get("close_target_name", "")
+        context.user_data["close_target_id"] = None
+        context.user_data["close_target_name"] = None
+
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=back)
+            return
+        if isinstance(response, dict) and response.get("error"):
+            error = response["error"]
+            error_map = {
+                "pending loan request must be resolved before closing":
+                    "این کاربر یک درخواست وام در انتظار بررسی دارد. ابتدا آن را تعیین تکلیف کنید.",
+                "must settle remaining debt before closing":
+                    "بدهی کاربر بیشتر از موجودی اوست و قابل تسویه نیست.",
+                "insufficient fund pool": "موجودی صندوق برای پرداخت کافی نیست.",
+                "Account is already closed": "حساب این کاربر قبلا بسته شده است.",
+                "Account not found": "حساب این کاربر یافت نشد.",
+            }
+            if error in error_map:
+                msg = error_map[error]
+            elif "forbidden" in error:
+                msg = "شما دسترسی لازم برای بستن حساب را ندارید."
+            else:
+                msg = "بستن حساب امکان‌پذیر نبود."
+            await self.render(update, f"❌ {msg}", reply_markup=back)
+            return
+
+        settled = response.get("settled_debt", 0)
+        paid_out = response.get("paid_out", 0)
+        await self.render(
+            update,
+            f"✅ حساب «{name}» با موفقیت بسته شد.\n"
+            f"بدهی تسویه‌شده: {settled:,} ریال\n"
+            f"مبلغ پرداختی به کاربر: {paid_out:,} ریال",
+            reply_markup=back,
+        )
 
     async def personal_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
