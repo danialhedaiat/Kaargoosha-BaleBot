@@ -28,14 +28,10 @@ A comprehensive Telegram/Bale messenger bot for family microfinance: loan manage
   - View all loans filtered by status, date range
   - Track disbursements and fund pool balance
 
-- **Deposit Management**
-  - Review pending deposit proofs with member info
-  - Approve/reject with admin notifications
-  - Track wallet charges
-
-- **Installment Approvals**
-  - Review pending installment payment proofs
-  - Approve/reject with detailed feedback
+- **Receipt Review (Deposits & Installments)**
+  - List pending receipts with member info, filtered by type/status/date
+  - View the actual submitted proof (photo or text) inline
+  - Approve to apply the wallet charge / installment payment, or reject with a reason
 
 - **System Administration**
   - Manage user roles and permissions
@@ -178,11 +174,11 @@ docs/
 | `loan` | topic | `loan.create`, `loan.approve`, `loan.reject`, `loan.get_client_history`, `loan.get_loans` | Loan workflow |
 | `account` | topic | `account.get_balance`, `account.set_threshold` | Wallet balance, eligibility threshold |
 | `bank_info` | topic | `bank_info.get`, `bank_info.save` | Bank data |
-| `deposit` | topic | `deposit.create`, `deposit.approve`, `deposit.reject` | Wallet charging |
-| `installment_payment` | topic | `installment_payment.get_pending`, `installment_payment.create`, `installment_payment.approve`, `installment_payment.reject` | Installment payments |
+| `receipt` | topic | `receipt.create`, `receipt.approve`, `receipt.reject`, `receipt.list`, `receipt.get_proof` | Proof-based deposit & installment-payment requests and admin review |
+| `installment_payment` | topic | `installment_payment.get_pending` | List a member's pending installments |
 | `role` | topic | `role.create`, `role.get_all`, `role.delete`, `role.assign`, `role.get_user_roles`, `role.revoke` | Role management |
 | `permission` | topic | `permission.get_role_permission`, `permission.get_all`, `permission.create`, `permission.revoke` | Permission management |
-| `notify` | topic | `notify.loan_request`, `notify.loan_approved`, `notify.loan_rejected`, `notify.deposit_request`, `notify.installment_payment_request` | Admin notifications |
+| `notify` | topic | `notify.loan_request`, `notify.loan_approved`, `notify.loan_rejected` | Admin & member loan notifications |
 
 ## Error Handling
 
