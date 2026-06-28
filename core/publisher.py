@@ -174,6 +174,22 @@ class BotPublisher:
         response = self.publish(exchange="installment_payment", routing_key="installment_payment.get_pending", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})
 
+    def get_balance(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="account", routing_key="account.get_balance", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def get_my_loans(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="loan", routing_key="loan.get_my_loans", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def list_my_receipts(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="receipt", routing_key="receipt.list_mine", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
+    def list_my_transactions(self, body, callback, callback_kwargs):
+        response = self.publish(exchange="transaction", routing_key="transaction.list_mine", message=body)
+        self.run_callback(callback, callback_kwargs, {"response": response})
+
     def create_role(self, body, callback, callback_kwargs):
         response = self.publish(exchange="role", routing_key="role.create", message=body)
         self.run_callback(callback, callback_kwargs, {"response": response})

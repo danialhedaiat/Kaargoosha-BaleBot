@@ -112,6 +112,10 @@ class BaleBot():
         self.app.add_handler(CallbackQueryHandler(self.transactions_list, pattern=r"^tx_rng_(dep|inst)_(approved|pending|rejected|all)_(day|week|month)$"))
         self.app.add_handler(CallbackQueryHandler(self.receipt_approve, pattern=r"^receipt_approve_(\d+)$"))
         self.app.add_handler(CallbackQueryHandler(self.receipt_reject, pattern=r"^receipt_reject_(\d+)$"))
+        self.app.add_handler(CallbackQueryHandler(self.my_balance, pattern="^my_balance$"))
+        self.app.add_handler(CallbackQueryHandler(self.my_receipts, pattern="^my_receipts$"))
+        self.app.add_handler(CallbackQueryHandler(self.my_loans, pattern="^my_loans$"))
+        self.app.add_handler(CallbackQueryHandler(self.my_transactions, pattern="^my_transactions$"))
 
         self.app.add_handler(MessageHandler(filters.CONTACT, self.contact_listener))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.photo_listener))
@@ -712,6 +716,10 @@ class BaleBot():
                 keyboard.append([InlineKeyboardButton("درخواست وام", callback_data="apply_for_loan")])
             keyboard.append([InlineKeyboardButton("شارژ کیف پول", callback_data="deposit_wallet")])
             keyboard.append([InlineKeyboardButton("پرداخت قسط", callback_data="pay_installment")])
+            keyboard.append([InlineKeyboardButton("موجودی کیف پول", callback_data="my_balance")])
+            keyboard.append([InlineKeyboardButton("رسیدهای من", callback_data="my_receipts")])
+            keyboard.append([InlineKeyboardButton("درخواست‌های وام من", callback_data="my_loans")])
+            keyboard.append([InlineKeyboardButton("تراکنش‌های من", callback_data="my_transactions")])
             keyboard.append([InlineKeyboardButton("اطلاعات بانکی", callback_data="bank_info")])
             keyboard.append([InlineKeyboardButton("بازگشت", callback_data="sign_in")])
 
@@ -720,6 +728,158 @@ class BaleBot():
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+    def _personal_back(self):
+        return InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت به منوی شخصی", callback_data="personal_menu")]])
+
+    async def my_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"user_id": context.user_data["user_id"]}
+        self.publisher.get_balance(
+            body=body,
+            callback=self.show_my_balance,
+            callback_kwargs={"update": update, "context": context},
+        )
+
+    async def show_my_balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = self._personal_back()
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=back)
+            return
+        if not isinstance(response, dict) or response.get("error"):
+            await self.render(update, "حساب شما یافت نشد", reply_markup=back)
+            return
+        balance = int(float(response.get("balance", 0)))
+        await self.render(update, f"موجودی کیف پول شما: {balance:,} ریال", reply_markup=back)
+
+    async def my_loans(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"user_id": context.user_data["user_id"]}
+        self.publisher.get_my_loans(
+            body=body,
+            callback=self.show_my_loans,
+            callback_kwargs={"update": update, "context": context},
+        )
+
+    async def show_my_loans(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = self._personal_back()
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=back)
+            return
+        if isinstance(response, dict):
+            await self.render(update, f"خطا: {response.get('error', 'خطای ناشناخته')}", reply_markup=back)
+            return
+        if len(response) == 0:
+            await self.render(update, "وامی یافت نشد", reply_markup=back)
+            return
+
+        status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+        blocks = ["درخواست‌های وام من:"]
+        for loan in response:
+            status_fa = status_map.get(loan.get("status"), loan.get("status"))
+            text = (
+                f"وام #{loan['id']}\n"
+                f"مدت: {loan['duration_months']} ماه\n"
+                f"وضعیت: {status_fa}"
+            )
+            if loan.get("amount"):
+                text += f"\nمبلغ: {loan['amount']:,} تومان"
+            if loan.get("monthly_amount"):
+                text += f"\nقسط ماهانه: {loan['monthly_amount']:,} تومان"
+            if loan.get("rejection_reason"):
+                text += f"\nدلیل رد: {loan['rejection_reason']}"
+            text += f"\nتاریخ: {loan['created_at']}"
+            blocks.append(text)
+        await self.render(update, "\n\n".join(blocks), reply_markup=back)
+
+    async def my_receipts(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"user_id": context.user_data["user_id"]}
+        self.publisher.list_my_receipts(
+            body=body,
+            callback=self.show_my_receipts,
+            callback_kwargs={"update": update, "context": context},
+        )
+
+    async def show_my_receipts(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = self._personal_back()
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=back)
+            return
+        if isinstance(response, dict):
+            await self.render(update, f"خطا: {response.get('error', 'خطای ناشناخته')}", reply_markup=back)
+            return
+        if len(response) == 0:
+            await self.render(update, "رسیدی یافت نشد", reply_markup=back)
+            return
+
+        status_map = {"pending": "در انتظار", "approved": "تایید شده", "rejected": "رد شده"}
+        type_map = {"deposit": "شارژ کیف پول", "installment_payment": "پرداخت اقساط"}
+        blocks = ["رسیدهای من:"]
+        for r in response:
+            text = (
+                f"#{r['id']} {type_map.get(r['type'], r['type'])} — "
+                f"{r['amount']:,} ریال — "
+                f"{status_map.get(r['status'], r['status'])} — "
+                f"{r['created_at']}"
+            )
+            if r.get("status") == "rejected" and r.get("rejection_reason"):
+                text += f"\nدلیل رد: {r['rejection_reason']}"
+            blocks.append(text)
+        await self.render(update, "\n\n".join(blocks), reply_markup=back)
+
+    async def my_transactions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.user_data.get("user_id"):
+            await self.render(update, "ربات مجددا راه اندازی شده است. لطفا دوباره /start را بزنید")
+            return
+        query = update.callback_query
+        await query.answer()
+        body = {"user_id": context.user_data["user_id"]}
+        self.publisher.list_my_transactions(
+            body=body,
+            callback=self.show_my_transactions,
+            callback_kwargs={"update": update, "context": context},
+        )
+
+    async def show_my_transactions(self, update: Update, context: ContextTypes.DEFAULT_TYPE, response):
+        back = self._personal_back()
+        if response is None:
+            await self.render(update, "پاسخی دریافت نشد", reply_markup=back)
+            return
+        if isinstance(response, dict):
+            await self.render(update, f"خطا: {response.get('error', 'خطای ناشناخته')}", reply_markup=back)
+            return
+        if len(response) == 0:
+            await self.render(update, "تراکنشی یافت نشد", reply_markup=back)
+            return
+
+        type_map = {
+            "deposit": "شارژ کیف پول",
+            "installment_payment": "پرداخت اقساط",
+            "loan_disbursement": "پرداخت وام",
+        }
+        dir_map = {"credit": "واریز", "debit": "برداشت"}
+        blocks = ["تراکنش‌های من:"]
+        for t in response:
+            blocks.append(
+                f"#{t['id']} {type_map.get(t['type'], t['type'])} "
+                f"({dir_map.get(t['direction'], t['direction'])}) — "
+                f"{t['amount']:,} ریال — "
+                f"{t['created_at']}"
+            )
+        await self.render(update, "\n\n".join(blocks), reply_markup=back)
 
     async def apply_for_loan(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
